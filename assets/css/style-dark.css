@@ -1,0 +1,16 @@
+<?php
+add_action('wp_enqueue_scripts', function () {
+    wp_enqueue_script('nova-ai-script', plugin_dir_url(__FILE__) . '../assets/js/nova-ai.js', [], false, true);
+
+    $theme = get_option('nova_ai_theme_style', 'default');
+
+    // Basis Style
+    wp_enqueue_style('nova-ai-style', plugin_dir_url(__FILE__) . '../assets/css/style.css');
+
+    // Zusätzliche Themes
+    if ($theme === 'dark') {
+        wp_enqueue_style('nova-ai-style-dark', plugin_dir_url(__FILE__) . '../assets/css/style-dark.css');
+    } elseif ($theme === 'terminal') {
+        wp_enqueue_style('nova-ai-style-terminal', plugin_dir_url(__FILE__) . '../assets/css/style-terminal.css');
+    }
+});

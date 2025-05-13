@@ -1,0 +1,58 @@
+#nova-ai-chatbot {
+    max-width: 700px;
+    margin: 30px auto;
+    padding: 20px;
+    background: #111;
+    color: #0f0;
+    font-family: monospace;
+    border-radius: 10px;
+    border: 1px solid #0f0;
+}
+
+.nova-ai-console-output {
+    max-height: 400px;
+    overflow-y: auto;
+    margin-bottom: 15px;
+    white-space: pre-wrap;
+    padding-right: 5px;
+}
+
+#nova-ai-console-input {
+    width: 100%;
+    padding: 10px;
+    border: none;
+    background: #000;
+    color: #0f0;
+    resize: none;
+    font-family: monospace;
+    line-height: 1.4;
+}
+
+#nova-ai-send {
+    margin-top: 10px;
+    padding: 8px 15px;
+    background: #0f0;
+    color: #000;
+    border: none;
+    cursor: pointer;
+    width: 100%;
+    font-family: monospace;
+}
+
+.user-input {
+    color: #0f0;
+    margin-bottom: 5px;
+}
+
+.ai-response {
+    color: #0f0;
+    margin-bottom: 10px;
+}
+
+.ai-response.loading {
+    color: yellow;
+}
+
+.ai-response.error {
+    color: red;
+}

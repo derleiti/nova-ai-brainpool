@@ -1,0 +1,13 @@
+/* Dark Theme */
+#nova-ai-widget.dark {
+    background: #1a1a1a;
+    color: #eee;
+}
+
+#nova-ai-widget.dark #nova-ai-header {
+    background: #111;
+}
+
+#nova-ai-widget.dark #nova-ai-footer {
+    background: #111;
+}
