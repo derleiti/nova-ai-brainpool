@@ -201,21 +201,6 @@ function nova_ai_process_crawl_to_knowledge($crawl_json_file) {
     return count($knowledge_items);
 }
 
-// Prepend knowledge base to user prompt for better context
-function nova_ai_prepend_knowledge($prompt) {
-    $kb = nova_ai_knowledge_base();
-    $inject = "";
-    
-    // Limit to 10 most relevant items to avoid context overflow
-    $kb = nova_ai_filter_relevant_knowledge($kb, $prompt, 10);
-    
-    foreach ($kb as $item) {
-        $inject .= "Q: {$item['question']}\nA: {$item['answer']}\n\n";
-    }
-    
-    return $inject . "Q: " . $prompt . "\nA:";
-}
-
 // Filter knowledge base items by relevance to the prompt
 function nova_ai_filter_relevant_knowledge($knowledge_base, $prompt, $limit = 10) {
     if (empty($knowledge_base) || count($knowledge_base) <= $limit) {

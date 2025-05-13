@@ -28,6 +28,7 @@ if (!file_exists(NOVA_AI_DATA_DIR)) {
 require_once NOVA_AI_PLUGIN_DIR . 'includes/core.php';
 require_once NOVA_AI_PLUGIN_DIR . 'includes/chat.php';
 require_once NOVA_AI_PLUGIN_DIR . 'includes/knowledge.php';
+require_once NOVA_AI_PLUGIN_DIR . 'includes/fullsite-chat.php';
 require_once NOVA_AI_PLUGIN_DIR . 'admin/settings.php';
 
 // Register activation and deactivation hooks
@@ -42,7 +43,7 @@ function nova_ai_install() {
         add_option('nova_ai_version', NOVA_AI_VERSION);
         add_option('nova_ai_api_type', 'ollama');
         add_option('nova_ai_api_url', 'http://host.docker.internal:11434/api/generate');
-        add_option('nova_ai_model', 'mistral');
+        add_option('nova_ai_model', 'zephyr'); // Changed default to zephyr
         add_option('nova_ai_theme_style', 'terminal');
         
         // Set the default crawl URLs
@@ -125,53 +126,6 @@ function nova_ai_recursive_delete($dir) {
     rmdir($dir);
 }
 
-// Enqueue scripts and styles for the frontend
-add_action('wp_enqueue_scripts', 'nova_ai_enqueue_scripts');
-
-function nova_ai_enqueue_scripts() {
-    // Only enqueue if shortcode is used on the page
-    global $post;
-    if (is_a($post, 'WP_Post') && has_shortcode($post->post_content, 'nova_ai_chat')) {
-        // Get theme setting
-        $theme = get_option('nova_ai_theme_style', 'terminal');
-        
-        // Enqueue common files
-        wp_enqueue_script('jquery');
-        
-        // Enqueue theme-specific files
-        if ($theme === 'terminal') {
-            wp_enqueue_style('nova-ai-terminal', NOVA_AI_PLUGIN_URL . 'assets/chat-frontend.css');
-            wp_enqueue_script('nova-ai-terminal', NOVA_AI_PLUGIN_URL . 'assets/chat-frontend.js', array('jquery'), NOVA_AI_VERSION, true);
-        } elseif ($theme === 'dark') {
-            wp_enqueue_style('nova-ai-dark', NOVA_AI_PLUGIN_URL . 'assets/style.css');
-            wp_enqueue_script('nova-ai-dark', NOVA_AI_PLUGIN_URL . 'assets/js/nova-ai-chat.js', array('jquery'), NOVA_AI_VERSION, true);
-        } else {
-            wp_enqueue_style('nova-ai-light', NOVA_AI_PLUGIN_URL . 'assets/nova-ai.css');
-            wp_enqueue_script('nova-ai-light', NOVA_AI_PLUGIN_URL . 'assets/nova-ai.js', array('jquery'), NOVA_AI_VERSION, true);
-        }
-        
-        // Add custom CSS if available
-        $custom_css = get_option('nova_ai_custom_css', '');
-        if (!empty($custom_css)) {
-            wp_add_inline_style($theme === 'terminal' ? 'nova-ai-terminal' : ($theme === 'dark' ? 'nova-ai-dark' : 'nova-ai-light'), $custom_css);
-        }
-        
-        // Add data for JS
-        wp_localize_script('nova-ai-terminal', 'nova_ai_vars', array(
-            'api_url' => rest_url('nova-ai/v1/chat'),
-            'nonce' => wp_create_nonce('wp_rest')
-        ));
-        wp_localize_script('nova-ai-dark', 'nova_ai_vars', array(
-            'api_url' => rest_url('nova-ai/v1/chat'),
-            'nonce' => wp_create_nonce('wp_rest')
-        ));
-        wp_localize_script('nova-ai-light', 'nova_ai_ajax', array(
-            'ajax_url' => admin_url('admin-ajax.php'),
-            'nonce' => wp_create_nonce('nova_ai_nonce')
-        ));
-    }
-}
-
 // Add debug logging if enabled
 function nova_ai_log($message, $type = 'info') {
     if (!get_option('nova_ai_debug_mode', false)) {
@@ -189,4 +143,56 @@ function nova_ai_log($message, $type = 'info') {
     $log_entry = "[{$timestamp}] [{$type}] {$message}\n";
     
     file_put_contents($log_file, $log_entry, FILE_APPEND);
+}
+
+// Check and add Zephyr model to Ollama if not already present
+add_action('admin_init', 'nova_ai_check_zephyr_model');
+function nova_ai_check_zephyr_model() {
+    // Only run this check once
+    if (get_option('nova_ai_zephyr_check_done', false)) {
+        return;
+    }
+
+    $api_type = get_option('nova_ai_api_type', 'ollama');
+    if ($api_type !== 'ollama') {
+        return;
+    }
+
+    $api_url = get_option('nova_ai_api_url', 'http://host.docker.internal:11434/api/list');
+    
+    // Get list of models from Ollama
+    $response = wp_remote_get($api_url, array('timeout' => 10));
+    
+    if (!is_wp_error($response)) {
+        $body = wp_remote_retrieve_body($response);
+        $result = json_decode($body, true);
+        
+        // Check if Zephyr is in the list
+        $has_zephyr = false;
+        if (isset($result['models'])) {
+            foreach ($result['models'] as $model) {
+                if (isset($model['name']) && $model['name'] === 'zephyr') {
+                    $has_zephyr = true;
+                    break;
+                }
+            }
+        }
+        
+        // If Zephyr is not found, add a notice
+        if (!$has_zephyr) {
+            add_action('admin_notices', 'nova_ai_zephyr_notice');
+        }
+    }
+    
+    // Mark check as done
+    update_option('nova_ai_zephyr_check_done', true);
+}
+
+// Admin notice if Zephyr model is not found
+function nova_ai_zephyr_notice() {
+    ?>
+    <div class="notice notice-warning is-dismissible">
+        <p><strong>Nova AI Brainpool:</strong> The Zephyr model was not found in your Ollama installation. Please run <code>ollama pull zephyr</code> on your server to download the model, or select a different model in the plugin settings.</p>
+    </div>
+    <?php
 }
