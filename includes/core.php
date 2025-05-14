@@ -2,16 +2,14 @@
 if (!defined('ABSPATH')) exit;
 
 /**
- * Core functionality for Nova AI Brainpool
+ * Nova AI Core Functions
+ * Common functionality used across the plugin
  */
 
 /**
  * Initialize the plugin
  */
 function nova_ai_init() {
-    // Register shortcode - main implementation is in the root file
-    // Note: We don't register the shortcode here anymore, it's in the main file
-    
     // Check if full-site chat is enabled
     if (get_option('nova_ai_enable_fullsite_chat', false)) {
         add_action('wp_footer', 'nova_ai_fullsite_chat');
@@ -20,54 +18,191 @@ function nova_ai_init() {
 add_action('init', 'nova_ai_init');
 
 /**
- * Test connection to AI provider - safe implementation
+ * Test connection to AI provider
  */
-function nova_ai_core_test_connection() {
+function nova_ai_test_connection() {
     $api_type = get_option('nova_ai_api_type', 'ollama');
     
-    try {
-        if ($api_type === 'ollama') {
-            // Implement safe connection test
-            return [
-                'success' => true,
-                'message' => 'Connection test successful!'
-            ];
-        } else {
-            return [
-                'success' => true,
-                'message' => 'OpenAI API configuration loaded.'
-            ];
+    if ($api_type === 'ollama') {
+        $api_url = get_option('nova_ai_api_url', 'http://host.docker.internal:11434/api/generate');
+        $model = get_option('nova_ai_model', 'zephyr');
+        
+        $test_url = preg_replace('/\/api\/generate$/', '/api/list', $api_url);
+        
+        $response = wp_remote_get($test_url, array(
+            'timeout' => 10,
+            'sslverify' => false
+        ));
+        
+        if (is_wp_error($response)) {
+            return array(
+                'success' => false,
+                'message' => 'Connection failed: ' . $response->get_error_message()
+            );
         }
-    } catch (Exception $e) {
-        return [
-            'success' => false,
-            'message' => $e->getMessage()
-        ];
+        
+        $response_code = wp_remote_retrieve_response_code($response);
+        if ($response_code !== 200) {
+            return array(
+                'success' => false,
+                'message' => 'HTTP Error: ' . $response_code
+            );
+        }
+        
+        // Try to get model list
+        $body = wp_remote_retrieve_body($response);
+        $result = json_decode($body, true);
+        
+        if (isset($result['models'])) {
+            // Check if selected model is available
+            $model_found = false;
+            foreach ($result['models'] as $available_model) {
+                if (isset($available_model['name']) && $available_model['name'] === $model) {
+                    $model_found = true;
+                    break;
+                }
+            }
+            
+            if ($model_found) {
+                return array(
+                    'success' => true,
+                    'message' => 'Connection successful! Model "' . $model . '" is available.'
+                );
+            } else {
+                return array(
+                    'success' => true,
+                    'message' => 'Connection successful! But model "' . $model . '" was not found. Available models: ' . 
+                                implode(', ', array_column($result['models'], 'name'))
+                );
+            }
+        } else {
+            return array(
+                'success' => true,
+                'message' => 'Connection successful! Ollama is running.'
+            );
+        }
+    } else {
+        // Test OpenAI
+        $api_key = get_option('nova_ai_api_key', '');
+        
+        if (empty($api_key)) {
+            return array(
+                'success' => false,
+                'message' => 'OpenAI API key is not configured.'
+            );
+        }
+        
+        $response = wp_remote_get('https://api.openai.com/v1/models', array(
+            'headers' => array(
+                'Authorization' => 'Bearer ' . $api_key
+            ),
+            'timeout' => 10
+        ));
+        
+        if (is_wp_error($response)) {
+            return array(
+                'success' => false,
+                'message' => 'Connection failed: ' . $response->get_error_message()
+            );
+        }
+        
+        $response_code = wp_remote_retrieve_response_code($response);
+        if ($response_code !== 200) {
+            $body = wp_remote_retrieve_body($response);
+            $error = json_decode($body, true);
+            $error_message = isset($error['error']['message']) ? $error['error']['message'] : 'HTTP Error: ' . $response_code;
+            
+            return array(
+                'success' => false,
+                'message' => $error_message
+            );
+        }
+        
+        return array(
+            'success' => true,
+            'message' => 'OpenAI API connection successful!'
+        );
     }
 }
 
 /**
- * Safe connection status function
+ * Check connection status for display
  */
-function nova_ai_core_connection_status() {
+function nova_ai_connection_status() {
     $api_type = get_option('nova_ai_api_type', 'ollama');
     $api_url = get_option('nova_ai_api_url', 'http://host.docker.internal:11434/api/generate');
     
     if ($api_type === 'ollama') {
-        return '<span style="color:green;">✓ Ollama API konfiguriert</span>';
+        $test_url = preg_replace('/\/api\/generate$/', '/api/list', $api_url);
+        $response = wp_remote_get($test_url, array('timeout' => 3, 'sslverify' => false));
+        
+        if (!is_wp_error($response) && wp_remote_retrieve_response_code($response) === 200) {
+            return '<span style="color:green;">✓ Connected to Ollama</span>';
+        }
+        
+        return '<span style="color:red;">✗ Could not connect to Ollama</span>';
     } else {
         $api_key = get_option('nova_ai_api_key', '');
         
         if (!empty($api_key)) {
-            return '<span style="color:green;">✓ OpenAI API Key konfiguriert</span>';
+            // We don't actually test the connection here to avoid rate limits
+            return '<span style="color:green;">✓ OpenAI API Key configured</span>';
         }
+        
+        return '<span style="color:red;">✗ OpenAI API Key missing</span>';
     }
-    
-    return '<span style="color:red;">✗ Keine Verbindung</span>';
 }
 
 /**
- * Get theme-specific CSS safely
+ * Get available Ollama models
+ */
+function nova_ai_get_ollama_models() {
+    $api_url = get_option('nova_ai_api_url', 'http://host.docker.internal:11434/api/generate');
+    $api_url = preg_replace('/\/api\/generate$/', '/api/list', $api_url);
+    
+    // Default models in case API is not available
+    $models = array(
+        'zephyr' => 'Zephyr (Recommended)',
+        'mistral' => 'Mistral',
+        'llama2' => 'LLaMA 2',
+        'phi' => 'Phi-2',
+        'gemma' => 'Gemma',
+        'neural-chat' => 'Neural Chat'
+    );
+    
+    // Try to get list of models from Ollama
+    $response = wp_remote_get($api_url, array('timeout' => 5, 'sslverify' => false));
+    
+    if (!is_wp_error($response) && wp_remote_retrieve_response_code($response) === 200) {
+        $body = wp_remote_retrieve_body($response);
+        $result = json_decode($body, true);
+        
+        if (isset($result['models']) && !empty($result['models'])) {
+            $available_models = array();
+            
+            foreach ($result['models'] as $model) {
+                if (isset($model['name'])) {
+                    // Use friendly names for known models, otherwise use the raw name
+                    $model_name = $model['name'];
+                    $display_name = isset($models[$model_name]) ? $models[$model_name] : $model_name;
+                    
+                    $available_models[$model_name] = $display_name;
+                }
+            }
+            
+            // If we found models, use those instead of our default list
+            if (!empty($available_models)) {
+                return $available_models;
+            }
+        }
+    }
+    
+    // Return default list if we couldn't get models from the API
+    return $models;
+}
+
+/**
+ * Get theme-specific CSS
  */
 function nova_ai_get_theme_css($theme) {
     switch ($theme) {
@@ -186,7 +321,7 @@ function nova_ai_get_theme_css($theme) {
 /**
  * Helper for safe logging
  */
-function nova_ai_core_log($message, $type = 'info') {
+function nova_ai_log($message, $type = 'info') {
     if (!get_option('nova_ai_debug_mode', false) && $type !== 'error') {
         return;
     }
