@@ -21,65 +21,45 @@ define('NOVA_AI_DATA_DIR', wp_upload_dir()['basedir'] . '/nova-ai-brainpool/');
  * Plugin activation function
  * Creates necessary options and directories
  */
+/**
+ * Plugin activation function
+ * Creates necessary options and directories
+ */
 function nova_ai_activate() {
     // Create data directories
     if (!file_exists(NOVA_AI_DATA_DIR)) {
-        wp_mkdir_p(NOVA_AI_DATA_DIR);
-        wp_mkdir_p(NOVA_AI_DATA_DIR . 'knowledge/general/');
-        wp_mkdir_p(NOVA_AI_DATA_DIR . 'logs/');
-        wp_mkdir_p(NOVA_AI_DATA_DIR . 'conversations/');
+        if (!wp_mkdir_p(NOVA_AI_DATA_DIR)) {
+            // Log directory creation error
+            error_log('Nova AI: Failed to create data directory: ' . NOVA_AI_DATA_DIR);
+        } else {
+            wp_mkdir_p(NOVA_AI_DATA_DIR . 'knowledge/general/');
+            wp_mkdir_p(NOVA_AI_DATA_DIR . 'logs/');
+            wp_mkdir_p(NOVA_AI_DATA_DIR . 'conversations/');
+        }
     }
     
     // Core options with defaults (only if not already set)
-    if (get_option('nova_ai_version') === false) {
-        add_option('nova_ai_version', NOVA_AI_VERSION);
-    }
+    update_option('nova_ai_version', NOVA_AI_VERSION);
     
     // AI Provider settings
-    if (get_option('nova_ai_api_type') === false) {
-        add_option('nova_ai_api_type', 'ollama');
-    }
-    if (get_option('nova_ai_api_url') === false) {
-        add_option('nova_ai_api_url', 'http://host.docker.internal:11434/api/generate');
-    }
-    if (get_option('nova_ai_model') === false) {
-        add_option('nova_ai_model', 'mistral');
-    }
-    if (get_option('nova_ai_system_prompt') === false) {
-        add_option('nova_ai_system_prompt', 'Du bist Nova, ein hilfreicher KI Assistent für AILinux Nutzer.');
-    }
-    if (get_option('nova_ai_temperature') === false) {
-        add_option('nova_ai_temperature', 0.7);
-    }
-    if (get_option('nova_ai_max_tokens') === false) {
-        add_option('nova_ai_max_tokens', 800);
-    }
+    add_option('nova_ai_api_type', 'ollama');
+    add_option('nova_ai_api_url', 'http://host.docker.internal:11434/api/generate');
+    add_option('nova_ai_model', 'mistral');
+    add_option('nova_ai_system_prompt', 'Du bist Nova, ein hilfreicher KI Assistent für AILinux Nutzer.');
+    add_option('nova_ai_temperature', 0.7);
+    add_option('nova_ai_max_tokens', 800);
     
     // Chat Interface settings
-    if (get_option('nova_ai_theme_style') === false) {
-        add_option('nova_ai_theme_style', 'terminal');
-    }
-    if (get_option('nova_ai_enable_fullsite_chat') === false) {
-        add_option('nova_ai_enable_fullsite_chat', false);
-    }
-    if (get_option('nova_ai_chat_position') === false) {
-        add_option('nova_ai_chat_position', 'bottom-right');
-    }
-    if (get_option('nova_ai_chat_welcome_message') === false) {
-        add_option('nova_ai_chat_welcome_message', 'Hi! I\'m Nova AI. How can I help you?');
-    }
-    if (get_option('nova_ai_chat_button_text') === false) {
-        add_option('nova_ai_chat_button_text', 'Chat with Nova AI');
-    }
-    if (get_option('nova_ai_chat_placeholder') === false) {
-        add_option('nova_ai_chat_placeholder', 'Type your message...');
-    }
+    add_option('nova_ai_theme_style', 'terminal');
+    add_option('nova_ai_enable_fullsite_chat', false);
+    add_option('nova_ai_chat_position', 'bottom-right');
+    add_option('nova_ai_chat_welcome_message', 'Hi! I\'m Nova AI. How can I help you?');
+    add_option('nova_ai_chat_button_text', 'Chat with Nova AI');
+    add_option('nova_ai_chat_placeholder', 'Type your message...');
     
     // Flush rewrite rules for REST API
     flush_rewrite_rules();
 }
-register_activation_hook(__FILE__, 'nova_ai_activate');
-
 /**
  * Plugin deactivation function
  */
@@ -95,10 +75,13 @@ function nova_ai_load_dependencies() {
     // Core functionality
     require_once NOVA_AI_PLUGIN_DIR . 'includes/core.php';
     require_once NOVA_AI_PLUGIN_DIR . 'includes/knowledge.php';
+    require_once NOVA_AI_PLUGIN_DIR . 'includes/theme-styles.php';
+    require_once NOVA_AI_PLUGIN_DIR . 'includes/updater.php';
     
     // Admin functionality (only load in admin)
     if (is_admin()) {
         require_once NOVA_AI_PLUGIN_DIR . 'admin/settings.php';
+        require_once NOVA_AI_PLUGIN_DIR . 'admin/functions.php';
     }
     
     // Public-facing functionality

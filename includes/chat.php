@@ -57,29 +57,66 @@ function nova_ai_chat_handler($request) {
         }
     }
     
-    // Make API call based on provider type
-    try {
-        if ($api_type === 'ollama') {
-            $response = nova_ai_call_ollama_api($api_url, $model, $system_prompt, $prompt, $conversation, $temperature, $max_tokens);
-        } else {
-            $api_key = get_option('nova_ai_api_key', '');
-            if (empty($api_key)) {
-                return new WP_Error('missing_api_key', 'API key is required for OpenAI API.', ['status' => 400]);
+/**
+ * Call Ollama API
+ */
+function nova_ai_call_ollama_api($api_url, $model, $system_prompt, $prompt, $conversation, $temperature, $max_tokens) {
+    // Convert conversation history to Ollama format if provided
+    $enhanced_prompt = $system_prompt . "\n\n";
+    
+    // Add conversation context if available (limit to last 5 messages)
+    if (!empty($conversation)) {
+        $limited_conversation = array_slice($conversation, -5);
+        foreach ($limited_conversation as $message) {
+            if ($message['role'] === 'user') {
+                $enhanced_prompt .= "Human: " . $message['content'] . "\n";
+            } else {
+                $enhanced_prompt .= "Nova: " . $message['content'] . "\n";
             }
-            $response = nova_ai_call_openai_api($api_url, $api_key, $model, $system_prompt, $prompt, $conversation, $temperature, $max_tokens);
         }
-    } catch (Exception $e) {
-        nova_ai_log("API Error: {$e->getMessage()}", 'error');
-        return new WP_Error('api_error', $e->getMessage(), ['status' => 500]);
     }
     
-    // Update chat statistics
-    nova_ai_update_chat_stats();
+    // Add current prompt
+    $enhanced_prompt .= "Human: " . $prompt . "\nNova:";
     
-    // Return the response
-    return ['reply' => $response];
+    // Prepare API request
+    $data = json_encode([
+        'model' => $model,
+        'prompt' => $enhanced_prompt,
+        'stream' => false,
+        'temperature' => floatval($temperature),
+        'max_tokens' => intval($max_tokens)
+    ]);
+    
+    // Make API call
+    $response = wp_remote_post($api_url, [
+        'body' => $data,
+        'headers' => ['Content-Type' => 'application/json'],
+        'timeout' => 30,
+    ]);
+    
+    // Handle response
+    if (is_wp_error($response)) {
+        nova_ai_log("API Error: " . $response->get_error_message(), 'error');
+        throw new Exception($response->get_error_message());
+    }
+    
+    $status_code = wp_remote_retrieve_response_code($response);
+    if ($status_code !== 200) {
+        nova_ai_log("API Error: Status code {$status_code}", 'error');
+        throw new Exception("API returned status code {$status_code}");
+    }
+    
+    $body = wp_remote_retrieve_body($response);
+    $result = json_decode($body, true);
+    
+    if (!is_array($result) || !isset($result['response'])) {
+        nova_ai_log("Unexpected response format: " . json_encode($result), 'error');
+        throw new Exception("Unexpected response format from Ollama API");
+    }
+    
+    return $result['response'];
 }
-
 /**
  * Call Ollama API
  */

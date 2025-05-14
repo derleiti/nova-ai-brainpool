@@ -1,4 +1,4 @@
-k/**
+/**
  * Nova AI Fullsite Chat JavaScript
  * Handles the interaction with the chat interface and API communication.
  */

@@ -382,30 +382,22 @@ function nova_ai_ai_settings_page() {
         return;
     }
     
-    // Handle form submissions
-    if (isset($_POST['nova_ai_save_ai_settings']) && check_admin_referer('nova_ai_ai_settings_nonce')) {
-        // Save settings
-        update_option('nova_ai_api_type', sanitize_text_field($_POST['nova_ai_api_type']));
-        update_option('nova_ai_api_url', esc_url_raw($_POST['nova_ai_api_url']));
-        update_option('nova_ai_api_key', sanitize_text_field($_POST['nova_ai_api_key']));
-        update_option('nova_ai_model', sanitize_text_field($_POST['nova_ai_model']));
-        update_option('nova_ai_max_tokens', absint($_POST['nova_ai_max_tokens']));
-        update_option('nova_ai_temperature', floatval($_POST['nova_ai_temperature']));
-        update_option('nova_ai_system_prompt', sanitize_textarea_field($_POST['nova_ai_system_prompt']));
-        update_option('nova_ai_debug_mode', isset($_POST['nova_ai_debug_mode']));
-        
-        echo '<div class="notice notice-success is-dismissible"><p>AI settings saved successfully!</p></div>';
-    }
+// Handle form submissions
+if (isset($_POST['nova_ai_save_ai_settings'])) {
+    check_admin_referer('nova_ai_ai_settings_nonce', 'nova_ai_nonce');
     
-    // Test connection
-    if (isset($_POST['nova_ai_test_connection']) && check_admin_referer('nova_ai_ai_settings_nonce')) {
-        $result = nova_ai_test_connection();
-        
-        if ($result['success']) {
-            echo '<div class="notice notice-success is-dismissible"><p>' . esc_html($result['message']) . '</p></div>';
-        } else {
-            echo '<div class="notice notice-error is-dismissible"><p>' . esc_html($result['message']) . '</p></div>';
-        }
+    // Save settings
+    update_option('nova_ai_api_type', sanitize_text_field($_POST['nova_ai_api_type']));
+    update_option('nova_ai_api_url', esc_url_raw($_POST['nova_ai_api_url']));
+    update_option('nova_ai_api_key', sanitize_text_field($_POST['nova_ai_api_key']));
+    update_option('nova_ai_model', sanitize_text_field($_POST['nova_ai_model']));
+    update_option('nova_ai_max_tokens', absint($_POST['nova_ai_max_tokens']));
+    update_option('nova_ai_temperature', floatval($_POST['nova_ai_temperature']));
+    update_option('nova_ai_system_prompt', sanitize_textarea_field($_POST['nova_ai_system_prompt']));
+    update_option('nova_ai_debug_mode', isset($_POST['nova_ai_debug_mode']));
+    
+    echo '<div class="notice notice-success is-dismissible"><p>AI settings saved successfully!</p></div>';
+}
     }
     
     // Get current settings
@@ -1008,3 +1000,12 @@ function nova_ai_connection_status() {
     
     return '<span style="color:red;">✗ Not connected</span>';
 }
+<form method="post" action="">
+    <?php wp_nonce_field('nova_ai_ai_settings_nonce', 'nova_ai_nonce'); ?>
+    
+    <!-- Form fields go here -->
+    
+    <p class="submit">
+        <input type="submit" name="nova_ai_save_ai_settings" class="button-primary" value="Save Settings">
+    </p>
+</form>
