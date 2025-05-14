@@ -1,20 +1,52 @@
 #nova-ai-chatbot {
     max-width: 700px;
     margin: 30px auto;
-    padding: 20px;
+    padding: 0;
     background: #111;
     color: #0f0;
-    font-family: monospace;
+    font-family: "Fira Code", monospace, "Courier New", Courier;
     border-radius: 10px;
     border: 1px solid #0f0;
+    box-shadow: 0 0 20px rgba(0, 255, 0, 0.1);
+    overflow: hidden;
+}
+
+.nova-ai-console-header {
+    background: #000;
+    border-bottom: 1px solid #0f0;
+    padding: 10px 15px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.nova-ai-title {
+    font-weight: bold;
+    color: #0f0;
+}
+
+.nova-ai-status {
+    font-size: 0.9em;
+    color: #0f0;
+}
+
+.nova-ai-status.error {
+    color: #ff5555;
 }
 
 .nova-ai-console-output {
     max-height: 400px;
     overflow-y: auto;
-    margin-bottom: 15px;
+    margin: 0;
+    padding: 15px;
     white-space: pre-wrap;
-    padding-right: 5px;
+    background: #111;
+}
+
+.nova-ai-console-input-area {
+    padding: 10px 15px 15px;
+    background: #000;
+    border-top: 1px solid #0c0;
 }
 
 #nova-ai-console-input {
@@ -24,35 +56,187 @@
     background: #000;
     color: #0f0;
     resize: none;
-    font-family: monospace;
+    font-family: inherit;
     line-height: 1.4;
+    outline: none;
+    min-height: 40px;
+    max-height: 150px;
+    overflow-y: auto;
+}
+
+#nova-ai-console-input::placeholder {
+    color: rgba(0, 255, 0, 0.5);
 }
 
 #nova-ai-send {
     margin-top: 10px;
     padding: 8px 15px;
-    background: #0f0;
+    background: #0c0;
     color: #000;
     border: none;
     cursor: pointer;
     width: 100%;
-    font-family: monospace;
+    font-family: inherit;
+    font-weight: bold;
+    border-radius: 3px;
+    transition: background-color 0.2s;
+}
+
+#nova-ai-send:hover {
+    background: #0f0;
+}
+
+#nova-ai-send:disabled {
+    background: #063;
+    cursor: not-allowed;
 }
 
 .user-input {
     color: #0f0;
-    margin-bottom: 5px;
+    margin-bottom: 10px;
+    padding: 5px 0;
+    border-left: 3px solid #0c0;
+    padding-left: 10px;
 }
 
 .ai-response {
     color: #0f0;
-    margin-bottom: 10px;
+    margin-bottom: 15px;
+    line-height: 1.5;
 }
 
 .ai-response.loading {
     color: yellow;
+    animation: blink 1s infinite;
 }
 
 .ai-response.error {
-    color: red;
+    color: #ff5555;
+    border-left: 3px solid #ff5555;
+    padding-left: 10px;
+}
+
+.ai-response code {
+    background: rgba(0, 255, 0, 0.1);
+    padding: 2px 4px;
+    border-radius: 3px;
+    font-family: inherit;
+}
+
+/* Dark theme styles */
+#nova-ai-chatbot.nova-theme-dark {
+    background: #121212;
+    color: #eee;
+    border-color: #333;
+    box-shadow: 0 0 20px rgba(0, 0, 0, 0.2);
+}
+
+#nova-ai-chatbot.nova-theme-dark .nova-ai-console-header {
+    background: #1a1a1a;
+    border-bottom: 1px solid #333;
+}
+
+#nova-ai-chatbot.nova-theme-dark .nova-ai-title {
+    color: #00ffc8;
+}
+
+#nova-ai-chatbot.nova-theme-dark .nova-ai-status {
+    color: #ccc;
+}
+
+#nova-ai-chatbot.nova-theme-dark .nova-ai-console-output {
+    background: #121212;
+}
+
+#nova-ai-chatbot.nova-theme-dark .nova-ai-console-input-area {
+    background: #1a1a1a;
+    border-top: 1px solid #333;
+}
+
+#nova-ai-chatbot.nova-theme-dark #nova-ai-console-input {
+    background: #222;
+    color: #fff;
+    border: 1px solid #333;
+}
+
+#nova-ai-chatbot.nova-theme-dark #nova-ai-send {
+    background: #00cca9;
+    color: #111;
+}
+
+#nova-ai-chatbot.nova-theme-dark #nova-ai-send:hover {
+    background: #00ffc8;
+}
+
+#nova-ai-chatbot.nova-theme-dark .user-input {
+    color: #fff;
+    border-left: 3px solid #00cca9;
+}
+
+#nova-ai-chatbot.nova-theme-dark .ai-response {
+    color: #00ffc8;
+}
+
+/* Light theme styles */
+#nova-ai-chatbot.nova-theme-light {
+    background: #f9f9f9;
+    color: #333;
+    border-color: #ddd;
+    box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
+}
+
+#nova-ai-chatbot.nova-theme-light .nova-ai-console-header {
+    background: #fff;
+    border-bottom: 1px solid #ddd;
+}
+
+#nova-ai-chatbot.nova-theme-light .nova-ai-title {
+    color: #008066;
+}
+
+#nova-ai-chatbot.nova-theme-light .nova-ai-status {
+    color: #666;
+}
+
+#nova-ai-chatbot.nova-theme-light .nova-ai-console-output {
+    background: #f9f9f9;
+}
+
+#nova-ai-chatbot.nova-theme-light .nova-ai-console-input-area {
+    background: #fff;
+    border-top: 1px solid #ddd;
+}
+
+#nova-ai-chatbot.nova-theme-light #nova-ai-console-input {
+    background: #fff;
+    color: #333;
+    border: 1px solid #ddd;
+}
+
+#nova-ai-chatbot.nova-theme-light #nova-ai-console-input::placeholder {
+    color: #aaa;
+}
+
+#nova-ai-chatbot.nova-theme-light #nova-ai-send {
+    background: #008066;
+    color: #fff;
+}
+
+#nova-ai-chatbot.nova-theme-light #nova-ai-send:hover {
+    background: #00a080;
+}
+
+#nova-ai-chatbot.nova-theme-light .user-input {
+    color: #333;
+    border-left: 3px solid #008066;
+}
+
+#nova-ai-chatbot.nova-theme-light .ai-response {
+    color: #008066;
+}
+
+/* Animations */
+@keyframes blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
 }
