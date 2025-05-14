@@ -21,10 +21,6 @@ define('NOVA_AI_DATA_DIR', wp_upload_dir()['basedir'] . '/nova-ai-brainpool/');
  * Plugin activation function
  * Creates necessary options and directories
  */
-/**
- * Plugin activation function
- * Creates necessary options and directories
- */
 function nova_ai_activate() {
     // Create data directories
     if (!file_exists(NOVA_AI_DATA_DIR)) {
@@ -60,6 +56,9 @@ function nova_ai_activate() {
     // Flush rewrite rules for REST API
     flush_rewrite_rules();
 }
+// BUGFIX: Register the activation hook
+register_activation_hook(__FILE__, 'nova_ai_activate');
+
 /**
  * Plugin deactivation function
  */
