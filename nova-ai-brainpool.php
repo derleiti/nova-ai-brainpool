@@ -70,27 +70,40 @@ register_deactivation_hook(__FILE__, 'nova_ai_deactivate');
 /**
  * Load plugin dependencies
  */
+/**
+ * Load plugin dependencies
+ */
 function nova_ai_load_dependencies() {
+    // Safe include function
+    if (!function_exists('nova_ai_safe_include')) {
+        function nova_ai_safe_include($file) {
+            if (file_exists($file)) {
+                include_once $file;
+                return true;
+            }
+            return false;
+        }
+    }
+    
     // Core functionality
-    require_once NOVA_AI_PLUGIN_DIR . 'includes/core.php';
-    require_once NOVA_AI_PLUGIN_DIR . 'includes/knowledge.php';
-    require_once NOVA_AI_PLUGIN_DIR . 'includes/theme-styles.php';
-    require_once NOVA_AI_PLUGIN_DIR . 'includes/updater.php';
+    nova_ai_safe_include(NOVA_AI_PLUGIN_DIR . 'includes/knowledge.php');
+    nova_ai_safe_include(NOVA_AI_PLUGIN_DIR . 'includes/core.php');
     
     // Admin functionality (only load in admin)
     if (is_admin()) {
-        require_once NOVA_AI_PLUGIN_DIR . 'admin/settings.php';
-        require_once NOVA_AI_PLUGIN_DIR . 'admin/functions.php';
+        nova_ai_safe_include(NOVA_AI_PLUGIN_DIR . 'admin/settings.php');
+        nova_ai_safe_include(NOVA_AI_PLUGIN_DIR . 'admin/functions.php');
     }
     
     // Public-facing functionality
-    require_once NOVA_AI_PLUGIN_DIR . 'includes/chat.php';
+    nova_ai_safe_include(NOVA_AI_PLUGIN_DIR . 'includes/chat.php');
     
     // Enable full-site chat if activated
     if (get_option('nova_ai_enable_fullsite_chat', false)) {
-        require_once NOVA_AI_PLUGIN_DIR . 'includes/fullsite-chat.php';
+        nova_ai_safe_include(NOVA_AI_PLUGIN_DIR . 'includes/fullsite-chat.php');
     }
 }
+
 add_action('plugins_loaded', 'nova_ai_load_dependencies');
 
 /**
@@ -203,46 +216,50 @@ add_action('admin_init', 'nova_ai_register_settings');
 /**
  * Enhanced shortcode implementation with analytics
  */
-function nova_ai_chat_shortcode($atts = []) {
-    // Parse attributes
-    $attributes = shortcode_atts([
-        'theme' => get_option('nova_ai_theme_style', 'terminal'),
-        'placeholder' => '> Frag mich was...',
-        'width' => '700px',
-        'height' => '400px',
-    ], $atts);
-    
-    // Record shortcode usage for analytics
-    $usage_count = get_option('nova_ai_shortcode_usage', 0);
-    update_option('nova_ai_shortcode_usage', $usage_count + 1);
-    
-    // Enqueue necessary styles and scripts
-    wp_enqueue_style('nova-ai-style', NOVA_AI_PLUGIN_URL . 'assets/chat-frontend.css');
-    wp_enqueue_script('nova-ai-script', NOVA_AI_PLUGIN_URL . 'assets/chat-frontend.js', array('jquery'), NOVA_AI_VERSION, true);
-    
-    // Pass data to JavaScript
-    wp_localize_script('nova-ai-script', 'nova_ai_vars', array(
-        'api_url' => rest_url('nova-ai/v1/chat'),
-        'nonce' => wp_create_nonce('wp_rest'),
-        'theme' => $attributes['theme'],
-        'conversation_id' => uniqid('nova_'),
-        'placeholder' => $attributes['placeholder']
-    ));
-    
-    // Add inline CSS for custom dimensions
-    $custom_css = "
-        #nova-ai-chatbot {
-            max-width: {$attributes['width']};
-        }
-        .nova-ai-console-output {
-            max-height: {$attributes['height']};
-        }
-    ";
-    wp_add_inline_style('nova-ai-style', $custom_css);
-    
-    // Return the chat container
-    return '<div id="nova-ai-chatbot" data-api-url="' . esc_url(rest_url('nova-ai/v1/chat')) . '" class="nova-theme-' . esc_attr($attributes['theme']) . '"></div>';
+if (!function_exists('nova_ai_chat_shortcode')) {
+    function nova_ai_chat_shortcode($atts = []) {
+        // Parse attributes
+        $attributes = shortcode_atts([
+            'theme' => get_option('nova_ai_theme_style', 'terminal'),
+            'placeholder' => '> Frag mich was...',
+            'width' => '700px',
+            'height' => '400px',
+        ], $atts);
+        
+        // Record shortcode usage for analytics
+        $usage_count = get_option('nova_ai_shortcode_usage', 0);
+        update_option('nova_ai_shortcode_usage', $usage_count + 1);
+        
+        // Enqueue necessary styles and scripts
+        wp_enqueue_style('nova-ai-style', NOVA_AI_PLUGIN_URL . 'assets/chat-frontend.css');
+        wp_enqueue_script('nova-ai-script', NOVA_AI_PLUGIN_URL . 'assets/chat-frontend.js', array('jquery'), NOVA_AI_VERSION, true);
+        
+        // Pass data to JavaScript
+        wp_localize_script('nova-ai-script', 'nova_ai_vars', array(
+            'api_url' => rest_url('nova-ai/v1/chat'),
+            'nonce' => wp_create_nonce('wp_rest'),
+            'theme' => $attributes['theme'],
+            'conversation_id' => uniqid('nova_'),
+            'placeholder' => $attributes['placeholder']
+        ));
+        
+        // Add inline CSS for custom dimensions
+        $custom_css = "
+            #nova-ai-chatbot {
+                max-width: {$attributes['width']};
+            }
+            .nova-ai-console-output {
+                max-height: {$attributes['height']};
+            }
+        ";
+        wp_add_inline_style('nova-ai-style', $custom_css);
+        
+        // Return the chat container
+        return '<div id="nova-ai-chatbot" data-api-url="' . esc_url(rest_url('nova-ai/v1/chat')) . '" class="nova-theme-' . esc_attr($attributes['theme']) . '"></div>';
+    }
 }
+add_shortcode('nova_ai_chat', 'nova_ai_chat_shortcode');
+
 add_shortcode('nova_ai_chat', 'nova_ai_chat_shortcode');
 
 /**
