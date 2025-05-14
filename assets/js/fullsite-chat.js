@@ -1,5 +1,5 @@
-/**
- * Nova AI Full-Site Chat JavaScript
+k/**
+ * Nova AI Fullsite Chat JavaScript
  * Handles the interaction with the chat interface and API communication.
  */
 
@@ -203,8 +203,11 @@
         $('.nova-ai-typing').remove();
     }
     
-    // Send message to Nova AI API
+    // Send message to API
     function sendMessageToAPI(message) {
+        // Disable the send button while processing
+        $send.prop('disabled', true);
+        
         // Create the conversation history to send
         const conversationHistory = state.messages
             .slice(-10) // Limit to last 10 messages to prevent context overflow
@@ -240,16 +243,28 @@
                 } else {
                     addAIMessage("I'm sorry, I couldn't generate a response. Please try again.");
                 }
+                
+                // Re-enable the send button
+                $send.prop('disabled', false);
             },
             error: function(xhr, status, error) {
                 // Hide typing indicator
                 hideTypingIndicator();
                 
                 // Add error message
-                addAIMessage("I'm having trouble connecting to my brain. Please try again in a moment.");
+                let errorMessage = "I'm having trouble connecting to my brain. Please try again in a moment.";
+                
+                if (xhr.responseJSON && xhr.responseJSON.message) {
+                    errorMessage = xhr.responseJSON.message;
+                }
+                
+                addAIMessage(errorMessage);
                 
                 // Log error
                 console.error('Nova AI Chat Error:', error);
+                
+                // Re-enable the send button
+                $send.prop('disabled', false);
             }
         });
     }
