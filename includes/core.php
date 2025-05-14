@@ -1,10 +1,13 @@
 <?php
 if (!defined('ABSPATH')) exit;
 
-// Install Routine - Removed duplicate function that was also in main plugin file
+// Install Routine
+function nova_ai_install() {
+    add_option('nova_ai_version', '1.0');
+}
 
 // Uninstall Routine
-function nova_ai_uninstall_cleanup() {
+function nova_ai_uninstall() {
     delete_option('nova_ai_version');
 }
 
@@ -24,25 +27,44 @@ function nova_ai_chat_shortcode() {
     if ($theme === 'terminal') {
         wp_enqueue_style('nova-ai-terminal', plugins_url('../assets/chat-frontend.css', __FILE__));
         wp_enqueue_script('nova-ai-terminal', plugins_url('../assets/chat-frontend.js', __FILE__), array('jquery'), null, true);
-    } elseif ($theme === 'dark') {
+        
+        // Add data for JS
+        wp_localize_script('nova-ai-terminal', 'nova_ai_vars', array(
+            'api_url' => rest_url('nova-ai/v1/chat'),
+            'nonce' => wp_create_nonce('wp_rest')
+        ));
+        
+        return '<div id="nova-ai-chatbot" data-api-url="' . esc_url(rest_url('nova-ai/v1/chat')) . '"></div>';
+    } 
+    elseif ($theme === 'dark') {
         wp_enqueue_style('nova-ai-dark', plugins_url('../assets/style.css', __FILE__));
         wp_enqueue_script('nova-ai-dark', plugins_url('../assets/js/nova-ai-chat.js', __FILE__), array('jquery'), null, true);
-    } else {
+        
+        // Add data for JS
+        wp_localize_script('nova-ai-dark', 'nova_ai_vars', array(
+            'api_url' => rest_url('nova-ai/v1/chat'),
+            'nonce' => wp_create_nonce('wp_rest')
+        ));
+        
+        return '<div id="nova-ai-chatbox" class="nova-ai-dark">
+                    <div id="nova-ai-messages"></div>
+                    <div id="nova-ai-input-area">
+                        <input type="text" id="nova-ai-input" placeholder="Frag Nova AI etwas...">
+                        <button id="nova-ai-send">Senden</button>
+                    </div>
+                </div>';
+    }
+    else {
+        // Light theme or default
         wp_enqueue_style('nova-ai-light', plugins_url('../assets/nova-ai.css', __FILE__));
         wp_enqueue_script('nova-ai-light', plugins_url('../assets/nova-ai.js', __FILE__), array('jquery'), null, true);
+        
+        // Add data for AJAX
+        wp_localize_script('nova-ai-light', 'nova_ai_ajax', array(
+            'ajax_url' => admin_url('admin-ajax.php'),
+            'nonce' => wp_create_nonce('nova_ai_nonce')
+        ));
+        
+        return '<div id="nova-ai-chat"></div>';
     }
-    
-    // Add custom CSS if available
-    $custom_css = get_option('nova_ai_custom_css', '');
-    if (!empty($custom_css)) {
-        wp_add_inline_style($theme === 'terminal' ? 'nova-ai-terminal' : ($theme === 'dark' ? 'nova-ai-dark' : 'nova-ai-light'), $custom_css);
-    }
-    
-    // Add data for JS
-    wp_localize_script($theme === 'terminal' ? 'nova-ai-terminal' : ($theme === 'dark' ? 'nova-ai-dark' : 'nova-ai-light'), 'nova_ai_vars', array(
-        'api_url' => rest_url('nova-ai/v1/chat'),
-        'nonce' => wp_create_nonce('wp_rest')
-    ));
-    
-    return '<div id="nova-ai-chatbot" data-api-url="' . esc_url(rest_url('nova-ai/v1/chat')) . '"></div>';
 }
