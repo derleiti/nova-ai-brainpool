@@ -1,0 +1,514 @@
+<?php
+if (!defined('ABSPATH')) exit;
+
+/**
+ * Nova AI Knowledge Base Manager
+ * Optimized for performance and relevance
+ */
+
+/**
+ * Get default knowledge base with caching
+ */
+function nova_ai_default_knowledge_base() {
+    // Use static variable for in-memory caching
+    static $default_knowledge = null;
+    
+    if ($default_knowledge === null) {
+        $default_knowledge = [
+            [
+                'question' => 'Was ist AILinux?',
+                'answer' => 'AILinux ist eine unabhängige, Open-Source Linux-Distribution, die von Markus Leitermann (derleiti.de) erstellt wurde. Sie ist für KI, Gaming und Leistung optimiert und steht nicht in Verbindung zu Alibaba Cloud.',
+                'category' => 'ailinux'
+            ],
+            [
+                'question' => 'Wer hat AILinux erstellt?',
+                'answer' => 'AILinux wurde von Markus Leitermann, auch bekannt als derleiti, erstellt. Es wird als Community-gestütztes, optimiertes System für KI und Power-User entwickelt.',
+                'category' => 'ailinux'
+            ],
+            [
+                'question' => 'Was ist Ollama?',
+                'answer' => 'Ollama ist eine Open-Source-Software, die es ermöglicht, verschiedene KI-Sprachmodelle lokal auf deinem Computer auszuführen. Es bietet eine einfache API und CLI zum Herunterladen und Verwenden von LLMs wie Llama 2, Mistral, und anderen.',
+                'category' => 'ai'
+            ],
+            [
+                'question' => 'Wie verbinde ich Nova AI mit Ollama?',
+                'answer' => 'In den Nova AI Plugin-Einstellungen unter "AI Settings" kannst du die Ollama API-URL (standardmäßig http://localhost:11434/api/generate oder in Docker http://host.docker.internal:11434/api/generate) eingeben und ein installiertes Modell auswählen.',
+                'category' => 'support'
+            ],
+            [
+                'question' => 'Welche KI-Modelle werden unterstützt?',
+                'answer' => 'Nova AI unterstützt alle Modelle, die von Ollama bereitgestellt werden, darunter Mistral, Llama, Zephyr, Phi und andere. Bei Verwendung der OpenAI-API werden Modelle wie GPT-3.5-Turbo und GPT-4 unterstützt.',
+                'category' => 'ai'
+            ],
+            [
+                'question' => 'Was ist der Nova AI Brainpool?',
+                'answer' => 'Nova AI Brainpool ist ein WordPress-Plugin, das einen KI-Chat im Terminal-Stil bereitstellt. Es kann mit lokalen KI-Modellen über Ollama oder mit der OpenAI API verbunden werden und bietet eine Wissensdatenbank für benutzerdefinierte Antworten.',
+                'category' => 'general'
+            ]
+        ];
+        
+        // Filter to allow adding default knowledge items
+        $default_knowledge = apply_filters('nova_ai_default_knowledge', $default_knowledge);
+    }
+    
+    return $default_knowledge;
+}
+
+/**
+ * Get combined knowledge base with caching
+ */
+function nova_ai_knowledge_base() {
+    // Use static variable for in-memory caching
+    static $knowledge_base = null;
+    static $last_update = 0;
+    
+    // Check option update time
+    $custom_knowledge_updated = get_option('nova_ai_custom_knowledge_updated', 0);
+    
+    // If knowledge is cached and up to date, return it
+    if ($knowledge_base !== null && $last_update >= $custom_knowledge_updated) {
+        return $knowledge_base;
+    }
+    
+    $default = nova_ai_default_knowledge_base();
+    $custom = get_option('nova_ai_custom_knowledge', []);
+    
+    // Update cache
+    $knowledge_base = array_merge($default, $custom);
+    $last_update = time();
+    
+    // Apply filters for extensions
+    $knowledge_base = apply_filters('nova_ai_full_knowledge_base', $knowledge_base);
+    
+    return $knowledge_base;
+}
+
+/**
+ * Add a new knowledge item
+ */
+function nova_ai_add_knowledge_item($question, $answer, $category = 'general') {
+    // Validate inputs
+    if (empty($question) || empty($answer)) {
+        return false;
+    }
+    
+    // Sanitize inputs
+    $question = sanitize_text_field($question);
+    $answer = sanitize_textarea_field($answer);
+    $category = sanitize_text_field($category);
+    
+    // Get current knowledge items
+    $custom_knowledge = get_option('nova_ai_custom_knowledge', []);
+    
+    // Check for duplicates
+    foreach ($custom_knowledge as $item) {
+        if (strtolower(trim($item['question'])) === strtolower(trim($question))) {
+            return false; // Duplicate question
+        }
+    }
+    
+    // Add new item
+    $custom_knowledge[] = [
+        'question' => $question,
+        'answer' => $answer,
+        'category' => $category,
+        'created' => date('Y-m-d H:i:s')
+    ];
+    
+    // Save updated items
+    $result = update_option('nova_ai_custom_knowledge', $custom_knowledge);
+    
+    // Update timestamp for cache invalidation
+    update_option('nova_ai_custom_knowledge_updated', time());
+    
+    return $result;
+}
+
+/**
+ * Delete a knowledge item
+ */
+function nova_ai_delete_knowledge_item($index) {
+    // Validate index
+    $index = intval($index);
+    
+    // Get current knowledge items
+    $custom_knowledge = get_option('nova_ai_custom_knowledge', []);
+    
+    // Check if index exists
+    if (!isset($custom_knowledge[$index])) {
+        return false;
+    }
+    
+    // Remove the item
+    unset($custom_knowledge[$index]);
+    
+    // Re-index the array
+    $custom_knowledge = array_values($custom_knowledge);
+    
+    // Save updated items
+    $result = update_option('nova_ai_custom_knowledge', $custom_knowledge);
+    
+    // Update timestamp for cache invalidation
+    update_option('nova_ai_custom_knowledge_updated', time());
+    
+    return $result;
+}
+
+/**
+ * Import knowledge items from JSON
+ */
+function nova_ai_import_knowledge_from_json($json_data) {
+    // Validate JSON
+    $data = json_decode($json_data, true);
+    
+    if (!$data || !is_array($data)) {
+        return 0; // Invalid JSON
+    }
+    
+    // Get current knowledge items
+    $custom_knowledge = get_option('nova_ai_custom_knowledge', []);
+    $existing_questions = [];
+    
+    // Create lookup for existing questions
+    foreach ($custom_knowledge as $item) {
+        $existing_questions[strtolower(trim($item['question']))] = true;
+    }
+    
+    // Import new items
+    $imported_count = 0;
+    foreach ($data as $item) {
+        // Validate item structure
+        if (!isset($item['question']) || !isset($item['answer'])) {
+            continue;
+        }
+        
+        // Check for duplicates
+        $question_key = strtolower(trim($item['question']));
+        if (isset($existing_questions[$question_key])) {
+            continue; // Skip duplicates
+        }
+        
+        // Add new item
+        $custom_knowledge[] = [
+            'question' => sanitize_text_field($item['question']),
+            'answer' => sanitize_textarea_field($item['answer']),
+            'category' => isset($item['category']) ? sanitize_text_field($item['category']) : 'general',
+            'created' => date('Y-m-d H:i:s')
+        ];
+        
+        $existing_questions[$question_key] = true;
+        $imported_count++;
+    }
+    
+    // Save updated items if any were imported
+    if ($imported_count > 0) {
+        update_option('nova_ai_custom_knowledge', $custom_knowledge);
+        update_option('nova_ai_custom_knowledge_updated', time());
+    }
+    
+    return $imported_count;
+}
+
+/**
+ * Get relevant knowledge for a prompt with enhanced relevance ranking
+ */
+function nova_ai_get_relevant_knowledge($prompt) {
+    $prompt = trim(strtolower($prompt));
+    $knowledge_base = nova_ai_knowledge_base();
+    
+    // If prompt is too short, return empty
+    if (strlen($prompt) < 3) {
+        return '';
+    }
+    
+    // Calculate relevance scores
+    $scored_items = [];
+    $prompt_words = preg_split('/\W+/', $prompt, -1, PREG_SPLIT_NO_EMPTY);
+    
+    foreach ($knowledge_base as $item) {
+        $question = strtolower($item['question']);
+        $question_words = preg_split('/\W+/', $question, -1, PREG_SPLIT_NO_EMPTY);
+        
+        // Calculate exact match score
+        $exact_match_score = 0;
+        if (strpos($prompt, $question) !== false || strpos($question, $prompt) !== false) {
+            $exact_match_score = 10;
+        }
+        
+        // Calculate word match score
+        $word_match_score = 0;
+        foreach ($prompt_words as $prompt_word) {
+            if (strlen($prompt_word) < 3) continue; // Skip short words
+            
+            foreach ($question_words as $question_word) {
+                if (strlen($question_word) < 3) continue; // Skip short words
+                
+                if ($prompt_word === $question_word) {
+                    $word_match_score += 2;
+                } elseif (strpos($question_word, $prompt_word) === 0) {
+                    // Word starts with the prompt word
+                    $word_match_score += 1;
+                }
+            }
+        }
+        
+        // Calculate total score
+        $score = $exact_match_score + $word_match_score;
+        
+        // Add to scored items if score is above threshold
+        if ($score > 0) {
+            $scored_items[] = [
+                'item' => $item,
+                'score' => $score
+            ];
+        }
+    }
+    
+    // Sort by score (highest first)
+    usort($scored_items, function($a, $b) {
+        return $b['score'] - $a['score'];
+    });
+    
+    // Use only top N items (adjust based on what works best)
+    $top_items = array_slice($scored_items, 0, 5);
+    
+    // Format as instruction for the model
+    if (empty($top_items)) {
+        return '';
+    }
+    
+    $knowledge_text = "Hier sind einige relevante Informationen zur Beantwortung der Frage:\n\n";
+    
+    foreach ($top_items as $scored_item) {
+        $item = $scored_item['item'];
+        $knowledge_text .= "F: {$item['question']}\nA: {$item['answer']}\n\n";
+    }
+    
+    return $knowledge_text;
+}
+
+/**
+ * Process crawled content to knowledge base
+ */
+function nova_ai_process_crawl_to_knowledge($crawl_file) {
+    if (!file_exists($crawl_file)) {
+        return 0;
+    }
+    
+    // Read and parse the JSON file
+    $json_content = file_get_contents($crawl_file);
+    $crawled_data = json_decode($json_content, true);
+    
+    if (!$crawled_data || !is_array($crawled_data)) {
+        return 0;
+    }
+    
+    // Get current knowledge items for duplicate checking
+    $custom_knowledge = get_option('nova_ai_custom_knowledge', []);
+    $existing_questions = [];
+    
+    // Create lookup for existing questions
+    foreach ($custom_knowledge as $item) {
+        $existing_questions[strtolower(trim($item['question']))] = true;
+    }
+    
+    // Created knowledge items
+    $created_count = 0;
+    $max_items = 100; // Limit to prevent overwhelming the database
+    
+    foreach ($crawled_data as $page) {
+        if ($created_count >= $max_items) {
+            break;
+        }
+        
+        // Create question from title
+        if (!empty($page['title'])) {
+            $question = nova_ai_generate_question_from_title($page['title']);
+            
+            // Check for duplicates
+            $question_key = strtolower(trim($question));
+            if (isset($existing_questions[$question_key])) {
+                continue;
+            }
+            
+            // Create answer from content
+            $answer = nova_ai_generate_answer_from_content($page);
+            
+            if (strlen($answer) > 50) { // Only add if answer has meaningful content
+                // Add new item
+                $custom_knowledge[] = [
+                    'question' => $question,
+                    'answer' => $answer,
+                    'category' => 'crawled',
+                    'source' => isset($page['url']) ? $page['url'] : '',
+                    'created' => date('Y-m-d H:i:s')
+                ];
+                
+                $existing_questions[$question_key] = true;
+                $created_count++;
+            }
+        }
+        
+        // Create additional questions from headings if possible
+        if ($created_count < $max_items && !empty($page['content'])) {
+            $headings = nova_ai_extract_headings_from_content($page['content']);
+            
+            foreach ($headings as $heading) {
+                if ($created_count >= $max_items) {
+                    break;
+                }
+                
+                $question = nova_ai_generate_question_from_heading($heading);
+                
+                // Check for duplicates
+                $question_key = strtolower(trim($question));
+                if (isset($existing_questions[$question_key])) {
+                    continue;
+                }
+                
+                // Create answer from relevant content section
+                $answer = nova_ai_generate_answer_from_heading($page['content'], $heading);
+                
+                if (strlen($answer) > 50) { // Only add if answer has meaningful content
+                    // Add new item
+                    $custom_knowledge[] = [
+                        'question' => $question,
+                        'answer' => $answer,
+                        'category' => 'crawled',
+                        'source' => isset($page['url']) ? $page['url'] : '',
+                        'created' => date('Y-m-d H:i:s')
+                    ];
+                    
+                    $existing_questions[$question_key] = true;
+                    $created_count++;
+                }
+            }
+        }
+    }
+    
+    // Save updated items if any were created
+    if ($created_count > 0) {
+        update_option('nova_ai_custom_knowledge', $custom_knowledge);
+        update_option('nova_ai_custom_knowledge_updated', time());
+    }
+    
+    return $created_count;
+}
+
+/**
+ * Helper functions for crawled content processing
+ */
+function nova_ai_generate_question_from_title($title) {
+    $title = trim($title);
+    
+    // Remove site name from title if present
+    $title = preg_replace('/ - .*$/', '', $title);
+    $title = preg_replace('/ \| .*$/', '', $title);
+    
+    // Generate question based on title structure
+    if (preg_match('/^(How|What|Why|Where|When|Who|Is|Are|Can|Do|Does)/i', $title)) {
+        // Title is already a question
+        return $title . (substr($title, -1) === '?' ? '' : '?');
+    } else {
+        // Convert statement to question
+        if (strpos(strtolower($title), 'how to') === 0) {
+            return 'How do I ' . substr($title, 7) . '?';
+        } else {
+            return 'Was ist ' . $title . '?';
+        }
+    }
+}
+
+function nova_ai_generate_question_from_heading($heading) {
+    $heading = trim($heading);
+    
+    // Generate question based on heading structure
+    if (preg_match('/^(How|What|Why|Where|When|Who|Is|Are|Can|Do|Does)/i', $heading)) {
+        // Heading is already a question
+        return $heading . (substr($heading, -1) === '?' ? '' : '?');
+    } else {
+        // Convert statement to question
+        if (strpos(strtolower($heading), 'how to') === 0) {
+            return 'How do I ' . substr($heading, 7) . '?';
+        } else {
+            return 'Was bedeutet ' . $heading . '?';
+        }
+    }
+}
+
+function nova_ai_generate_answer_from_content($page) {
+    $content = isset($page['content']) ? $page['content'] : '';
+    $description = isset($page['description']) ? $page['description'] : '';
+    
+    // If content is empty, use description
+    if (empty($content) && !empty($description)) {
+        return $description;
+    }
+    
+    // Limit content length
+    $max_length = 1000;
+    if (strlen($content) > $max_length) {
+        // Try to find a good break point
+        $break_point = strrpos(substr($content, 0, $max_length), '.');
+        if ($break_point !== false) {
+            $content = substr($content, 0, $break_point + 1);
+        } else {
+            $content = substr($content, 0, $max_length) . '...';
+        }
+    }
+    
+    return $content;
+}
+
+function nova_ai_generate_answer_from_heading($content, $heading) {
+    // Find the section after the heading
+    $pattern = '/(' . preg_quote($heading, '/') . ')\s*(.+?)(?=\n\s*[A-Z]|\z)/s';
+    if (preg_match($pattern, $content, $matches)) {
+        $section = $matches[2];
+    } else {
+        // Fallback: take some content after the heading
+        $pos = strpos($content, $heading);
+        if ($pos !== false) {
+            $section_start = $pos + strlen($heading);
+            $section_end = $section_start + 500;
+            $section = substr($content, $section_start, $section_end - $section_start);
+            
+            // Try to find a good break point
+            $break_point = strrpos($section, '.');
+            if ($break_point !== false) {
+                $section = substr($section, 0, $break_point + 1);
+            }
+        } else {
+            return '';
+        }
+    }
+    
+    // Clean up the section
+    $section = trim($section);
+    
+    // Limit section length
+    $max_length = 500;
+    if (strlen($section) > $max_length) {
+        // Try to find a good break point
+        $break_point = strrpos(substr($section, 0, $max_length), '.');
+        if ($break_point !== false) {
+            $section = substr($section, 0, $break_point + 1);
+        } else {
+            $section = substr($section, 0, $max_length) . '...';
+        }
+    }
+    
+    return $section;
+}
+
+function nova_ai_extract_headings_from_content($content) {
+    $headings = [];
+    
+    // Extract headings using regex
+    if (preg_match_all('/\n\s*([A-Z][^\.!?:]{10,60}(?:\?|:|\.|\!)?)\s*\n/m', $content, $matches)) {
+        $headings = $matches[1];
+    }
+    
+    // Limit to 5 headings
+    return array_slice($headings, 0, 5);
+}
