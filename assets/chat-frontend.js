@@ -25,7 +25,6 @@ jQuery(document).ready(function($) {
 
     // Initial welcome message
     output.append('<div class="ai-response">Willkommen! Ich bin Nova, dein KI Assistent. Wie kann ich dir helfen?</div>');
-    scrollToBottom();
 
     // Helper functions
     function scrollToBottom() {
@@ -62,10 +61,7 @@ jQuery(document).ready(function($) {
         $.ajax({
             url: apiUrl,
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-WP-Nonce': nova_ai_vars.nonce
-            },
+            contentType: 'application/json',
             data: JSON.stringify({ 
                 prompt: message,
                 conversation_id: conversationId
