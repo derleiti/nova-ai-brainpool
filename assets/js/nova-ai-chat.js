@@ -1,32 +1,70 @@
 document.addEventListener('DOMContentLoaded', function () {
-    const chatbox = document.getElementById('nova-ai-chatbox');
-    const form = document.getElementById('nova-ai-form');
-    const input = document.getElementById('nova-ai-input');
+    const form = document.querySelector('#nova-ai-chat-form');
+    const input = document.querySelector('#nova-ai-user-input');
+    const fileInput = document.querySelector('#nova-ai-image-upload');
+    const output = document.querySelector('#nova-ai-chat-output');
+
+    if (!form || !input || !output) return;
 
     form.addEventListener('submit', function (e) {
         e.preventDefault();
-        const userInput = input.value.trim();
-        if (userInput === '') return;
 
-        addMessage('Du', userInput);
-        input.value = '';
+        const text = input.value.trim();
+        const file = fileInput.files[0];
 
-        fetch('/wp-json/nova-ai/v1/chat', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ message: userInput })
-        })
-        .then(response => response.json())
-        .then(data => {
-            addMessage('Nova', data.reply);
-        })
-        .catch(() => {
-            addMessage('Nova', 'Fehler: Server offline oder AI nicht erreichbar.');
-        });
+        if (!text && !file) {
+            output.innerHTML = "<p><em>Bitte eine Frage eingeben oder ein Bild hochladen.</em></p>";
+            return;
+        }
+
+        output.innerHTML = "<p><em>Verarbeite Anfrage...</em></p>";
+
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = function () {
+                const base64Image = reader.result.split(',')[1];
+
+                fetch(nova_ai_vars.chat_url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        model: nova_ai_vars.model,
+                        prompt: text || "Beschreibe dieses Bild",
+                        image: base64Image
+                    })
+                })
+                .then(res => res.json())
+                .then(data => {
+                    const response = data.message?.content || data.choices?.[0]?.message?.content || 'Keine Antwort.';
+                    output.innerHTML = `<p>${response}</p>`;
+                })
+                .catch(err => {
+                    output.innerHTML = "<p><strong>Fehler bei der Analyse.</strong></p>";
+                    console.error(err);
+                });
+            };
+            reader.readAsDataURL(file);
+        } else {
+            fetch(nova_ai_vars.chat_url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    model: nova_ai_vars.model,
+                    messages: [{ role: 'user', content: text }],
+                    stream: false
+                })
+            })
+            .then(res => res.json())
+            .then(data => {
+                const response = data.message?.content || data.choices?.[0]?.message?.content || 'Keine Antwort.';
+                output.innerHTML = `<p>${response}</p>`;
+            })
+            .catch(err => {
+                output.innerHTML = "<p><strong>Fehler bei der Anfrage.</strong></p>";
+                console.error(err);
+            });
+        }
     });
 
-    function addMessage(sender, text) {
-        chatbox.innerHTML += `<div><strong>${sender}:</strong> ${text}</div>`;
-        chatbox.scrollTop = chatbox.scrollHeight;
-    }
+    console.log("Nova AI Modell:", nova_ai_vars.model);
 });

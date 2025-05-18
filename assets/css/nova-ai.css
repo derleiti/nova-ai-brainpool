@@ -1,13 +1,26 @@
-/* Dark Theme */
-#nova-ai-widget.dark {
-    background: #1a1a1a;
-    color: #eee;
-}
-
-#nova-ai-widget.dark #nova-ai-header {
+#nova-ai-chat-wrapper {
     background: #111;
+    padding: 1rem;
+    border-radius: 1rem;
+    color: #fff;
+    max-width: 600px;
+    margin: 2rem auto;
+    font-family: sans-serif;
 }
-
-#nova-ai-widget.dark #nova-ai-footer {
-    background: #111;
+#nova-ai-chat-form {
+    display: flex;
+    gap: 0.5rem;
+}
+#nova-ai-user-input {
+    flex-grow: 1;
+    padding: 0.5rem;
+    background: #222;
+    color: #fff;
+    border: 1px solid #444;
+}
+#nova-ai-chat-output {
+    margin-top: 1rem;
+    background: #222;
+    padding: 1rem;
+    border-radius: 0.5rem;
 }
