@@ -3,45 +3,50 @@ if (!defined('ABSPATH')) exit;
 
 /**
  * Nova AI Update Functions
- * 
- * Handles plugin updates and database migrations
+ * Führt Plugin-Upgrades und Datenmigrationen durch
  */
 
-/**
- * Check for plugin updates and perform necessary migrations
- */
+// Automatisch bei Admin-Aufruf Updates prüfen
+add_action('admin_init', 'nova_ai_check_updates');
+
 function nova_ai_check_updates() {
+    if (!defined('NOVA_AI_VERSION')) return;
+
     $current_version = get_option('nova_ai_version', '1.0');
-    
-    // If versions match, no update needed
+
     if ($current_version === NOVA_AI_VERSION) {
-        return;
+        return; // Keine Aktualisierung nötig
     }
-    
-    // Version-specific updates
+
     if (version_compare($current_version, '1.1', '<')) {
         nova_ai_update_to_1_1();
     }
-    
-    // Update version number
-    update_option('nova_ai_version', NOVA_AI_VERSION);
-}
-add_action('admin_init', 'nova_ai_check_updates');
 
-/**
- * Update tasks for version 1.1
- */
-function nova_ai_update_to_1_1() {
-    // Create directories if they don't exist
-    if (!file_exists(NOVA_AI_DATA_DIR . 'conversations/')) {
-        wp_mkdir_p(NOVA_AI_DATA_DIR . 'conversations/');
+    // Platzhalter für zukünftige Versionen
+    // if (version_compare($current_version, '1.2', '<')) {
+    //     nova_ai_update_to_1_2();
+    // }
+
+    update_option('nova_ai_version', NOVA_AI_VERSION);
+
+    if (function_exists('nova_ai_log')) {
+        nova_ai_log("Nova AI aktualisiert von $current_version auf " . NOVA_AI_VERSION, 'info');
     }
-    
-    // Add new options
+}
+
+// Update auf Version 1.1 – neue Optionen, Verzeichnisse
+function nova_ai_update_to_1_1() {
+    if (defined('NOVA_AI_DATA_DIR')) {
+        if (!file_exists(NOVA_AI_DATA_DIR . 'conversations/')) {
+            wp_mkdir_p(NOVA_AI_DATA_DIR . 'conversations/');
+        }
+    }
+
     if (get_option('nova_ai_chat_welcome_message') === false) {
         add_option('nova_ai_chat_welcome_message', "Hi! I'm Nova AI. How can I help you?");
     }
-    
-    // Log the update
-    nova_ai_log('Updated plugin to version 1.1', 'info');
+
+    if (function_exists('nova_ai_log')) {
+        nova_ai_log('Update-Routine für 1.1 abgeschlossen', 'info');
+    }
 }
