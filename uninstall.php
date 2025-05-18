@@ -1,57 +1,87 @@
 <?php
-// If this file is called directly, abort.
-if (!defined('WP_UNINSTALL_PLUGIN')) exit;
+/**
+ * Uninstall procedure for Nova AI Brainpool
+ * 
+ * @package Nova_AI_Brainpool
+ */
 
-// Remove all plugin options for a clean uninstall
-delete_option('nova_ai_version');
-delete_option('nova_ai_api_type');
-delete_option('nova_ai_api_url');
-delete_option('nova_ai_api_key');
-delete_option('nova_ai_model');
-delete_option('nova_ai_max_tokens');
-delete_option('nova_ai_temperature');
-delete_option('nova_ai_system_prompt');
-delete_option('nova_ai_debug_mode');
-delete_option('nova_ai_theme_style');
-delete_option('nova_ai_custom_css');
-delete_option('nova_ai_enable_fullsite_chat');
-delete_option('nova_ai_chat_position');
-delete_option('nova_ai_chat_welcome_message');
-delete_option('nova_ai_chat_button_text');
-delete_option('nova_ai_chat_placeholder');
-delete_option('nova_ai_custom_knowledge');
-delete_option('nova_ai_crawl_urls');
-delete_option('nova_ai_crawl_depth');
-delete_option('nova_ai_crawl_limit');
-delete_option('nova_ai_auto_import_knowledge');
-delete_option('nova_ai_total_chats');
-delete_option('nova_ai_today_chats');
-delete_option('nova_ai_today_date');
-delete_option('nova_ai_shortcode_usage');
+// If uninstall.php is not called by WordPress, die
+if (!defined('WP_UNINSTALL_PLUGIN')) {
+    die;
+}
 
-// Optional: Remove plugin data directories
-// Note: Uncomment this if you want to remove all user data on uninstall
+// Remove all plugin options
+function nova_ai_cleanup_options() {
+    $options = array(
+        'nova_ai_version',
+        'nova_ai_api_type',
+        'nova_ai_api_url',
+        'nova_ai_api_key',
+        'nova_ai_model',
+        'nova_ai_max_tokens',
+        'nova_ai_temperature',
+        'nova_ai_system_prompt',
+        'nova_ai_debug_mode',
+        'nova_ai_theme_style',
+        'nova_ai_custom_css',
+        'nova_ai_enable_fullsite_chat',
+        'nova_ai_chat_position',
+        'nova_ai_chat_welcome_message',
+        'nova_ai_chat_button_text',
+        'nova_ai_chat_placeholder',
+        'nova_ai_custom_knowledge',
+        'nova_ai_crawl_urls',
+        'nova_ai_crawl_depth',
+        'nova_ai_crawl_limit',
+        'nova_ai_auto_import_knowledge',
+        'nova_ai_total_chats',
+        'nova_ai_today_chats',
+        'nova_ai_today_date',
+        'nova_ai_shortcode_usage'
+    );
+    
+    foreach ($options as $option) {
+        delete_option($option);
+    }
+    
+    // Remove transients
+    delete_transient('nova_ai_api_cache');
+    delete_transient('nova_ai_knowledge_export');
+    
+    // Clean up user meta for all users
+    global $wpdb;
+    $wpdb->query("DELETE FROM {$wpdb->usermeta} WHERE meta_key LIKE 'nova_ai_%'");
+}
+
+// Optional data cleanup - uncomment to enable complete removal
+// Define a function to recursively delete directories
+function nova_ai_recursive_rmdir($dir) {
+    if (is_dir($dir)) {
+        $files = scandir($dir);
+        foreach ($files as $file) {
+            if ($file != "." && $file != "..") {
+                $path = $dir . "/" . $file;
+                if (is_dir($path)) {
+                    nova_ai_recursive_rmdir($path);
+                } else {
+                    unlink($path);
+                }
+            }
+        }
+        rmdir($dir);
+        return true;
+    }
+    return false;
+}
+
+// Perform option cleanup
+nova_ai_cleanup_options();
+
+// Uncomment to remove data directory
 /*
 $upload_dir = wp_upload_dir();
 $plugin_data_dir = $upload_dir['basedir'] . '/nova-ai-brainpool/';
 if (file_exists($plugin_data_dir)) {
     nova_ai_recursive_rmdir($plugin_data_dir);
-}
-
-// Helper function to recursively remove a directory
-function nova_ai_recursive_rmdir($dir) {
-    if (is_dir($dir)) {
-        $objects = scandir($dir);
-        foreach ($objects as $object) {
-            if ($object != "." && $object != "..") {
-                if (is_dir($dir . "/" . $object)) {
-                    nova_ai_recursive_rmdir($dir . "/" . $object);
-                } else {
-                    unlink($dir . "/" . $object);
-                }
-            }
-        }
-        rmdir($dir);
-    }
 }
 */
