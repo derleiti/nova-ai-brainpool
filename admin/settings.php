@@ -16,7 +16,7 @@ add_action('admin_menu', function() {
 function nova_ai_admin_settings_page() {
     echo '<div class="wrap">';
     echo '<h1>Nova AI Brainpool – Einstellungen & Info</h1>';
-    echo '<p>Willkommen beim KI-Plugin. Verwende den Shortcode <code>[nova_ai_chat]</code> auf einer beliebigen Seite/Beitrag für den Chat.</p>';
+    echo '<p>Willkommen beim KI-Plugin. Verwende den Shortcode <code>[nova_ai_chat]</code> auf einer beliebigen Seite oder Beitrag für den Chat.</p>';
 
     // .env-Status prüfen
     $env_path = dirname(__DIR__) . '/.env';

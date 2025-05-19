@@ -2,21 +2,25 @@ document.addEventListener('DOMContentLoaded', function() {
     const chatbox = document.getElementById('nova-ai-chatbox');
     if (!chatbox) return;
 
-    const input = document.getElementById('nova-ai-input');
+    const textarea = document.getElementById('nova-ai-input');
     const send = document.getElementById('nova-ai-send');
     const messages = document.getElementById('nova-ai-messages');
 
     send.addEventListener('click', sendMessage);
-    input.addEventListener('keydown', function(e) {
-        if (e.key === 'Enter') sendMessage();
+    textarea.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            sendMessage();
+        }
     });
 
     function sendMessage() {
-        const userMsg = input.value.trim();
+        const userMsg = textarea.value.trim();
         if (!userMsg) return;
         addMsg('Du', userMsg);
-        input.value = '';
-        // AJAX-Request an WP (WordPress Ajax-Endpoint)
+        textarea.value = '';
+        textarea.focus();
+
         fetch((window.nova_ai_chat_ajax ? window.nova_ai_chat_ajax.ajaxurl : '/wp-admin/admin-ajax.php'), {
             method: 'POST',
             credentials: 'same-origin',
@@ -40,7 +44,7 @@ document.addEventListener('DOMContentLoaded', function() {
     function addMsg(who, msg) {
         const el = document.createElement('div');
         el.className = 'nova-ai-msg ' + (who === 'Nova' ? 'ai' : 'user');
-        el.innerHTML = `<b>${who}:</b> ${msg}`;
+        el.innerHTML = `<b>${who}:</b> ${msg.replace(/\n/g, '<br>')}`;
         messages.appendChild(el);
         messages.scrollTop = messages.scrollHeight;
     }

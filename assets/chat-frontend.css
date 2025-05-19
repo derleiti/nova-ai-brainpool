@@ -1,44 +1,51 @@
 #nova-ai-chatbox {
     background: #181f2a;
-    border-radius: 8px;
-    max-width: 420px;
-    margin: 30px auto;
-    box-shadow: 0 0 8px #1115;
-    padding: 15px;
+    border-radius: 12px;
+    max-width: 600px;
+    margin: 50px auto 40px auto;
+    box-shadow: 0 2px 24px #1118;
+    padding: 24px;
     font-family: 'Fira Mono', monospace, Arial;
 }
 #nova-ai-messages {
-    min-height: 120px;
-    max-height: 240px;
+    min-height: 180px;
+    max-height: 380px;
     overflow-y: auto;
-    margin-bottom: 8px;
+    margin-bottom: 12px;
     background: #131a25;
-    border-radius: 5px;
-    padding: 8px;
+    border-radius: 7px;
+    padding: 12px;
     color: #d1eaff;
-    font-size: 1em;
+    font-size: 1.08em;
+    word-break: break-word;
 }
 .nova-ai-msg.user { color: #aadfff; }
 .nova-ai-msg.ai { color: #9ed274; }
 #nova-ai-input {
-    width: 72%;
+    width: 100%;
     border: 1px solid #292e36;
     background: #181f2a;
     color: #d1eaff;
-    padding: 7px;
-    border-radius: 5px;
+    padding: 12px;
+    border-radius: 7px;
+    resize: vertical;
+    min-height: 54px;
+    margin-bottom: 10px;
+    font-size: 1.08em;
+    line-height: 1.38;
 }
 #nova-ai-send {
-    width: 25%;
+    width: 100%;
     background: #0047ab;
     color: #fff;
     border: none;
-    border-radius: 5px;
-    padding: 8px;
-    margin-left: 4px;
+    border-radius: 7px;
+    padding: 14px;
+    font-size: 1.11em;
     cursor: pointer;
     font-weight: bold;
-    transition: background 0.15s;
+    transition: background 0.18s;
+    letter-spacing: 0.05em;
 }
 #nova-ai-send:hover {
     background: #0082ff;
