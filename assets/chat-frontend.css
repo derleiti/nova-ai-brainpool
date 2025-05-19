@@ -1,52 +1,107 @@
+/* Responsive Nova AI Chatbox */
 #nova-ai-chatbox {
-    background: #181f2a;
-    border-radius: 12px;
-    max-width: 600px;
-    margin: 50px auto 40px auto;
-    box-shadow: 0 2px 24px #1118;
-    padding: 24px;
-    font-family: 'Fira Mono', monospace, Arial;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    width: 100%;
+    max-width: 400px;
+    margin: 60px auto 0 auto;
+    background: #181e24;
+    border-radius: 18px;
+    box-shadow: 0 8px 32px 0 rgba(0,0,0,0.20);
+    padding: 24px 18px 18px 18px;
+    min-height: 240px;
+    min-width: 0;
 }
+
 #nova-ai-messages {
-    min-height: 180px;
-    max-height: 380px;
+    width: 100%;
+    min-height: 70px;
+    max-height: 220px;
     overflow-y: auto;
-    margin-bottom: 12px;
-    background: #131a25;
-    border-radius: 7px;
-    padding: 12px;
-    color: #d1eaff;
-    font-size: 1.08em;
+    background: #151a1e;
+    border-radius: 8px;
+    color: #b4e197;
+    font-family: 'Fira Mono', monospace, monospace;
+    font-size: 1rem;
+    padding: 16px 10px 10px 16px;
+    margin-bottom: 14px;
     word-break: break-word;
+    transition: background 0.2s;
 }
-.nova-ai-msg.user { color: #aadfff; }
-.nova-ai-msg.ai { color: #9ed274; }
+
+#nova-ai-messages::-webkit-scrollbar {
+    width: 8px;
+    background: #222831;
+}
+#nova-ai-messages::-webkit-scrollbar-thumb {
+    background: #444e5e;
+    border-radius: 8px;
+}
+
 #nova-ai-input {
     width: 100%;
-    border: 1px solid #292e36;
-    background: #181f2a;
-    color: #d1eaff;
-    padding: 12px;
-    border-radius: 7px;
+    min-height: 48px;
+    max-height: 120px;
     resize: vertical;
-    min-height: 54px;
+    background: #13181e;
+    border: 1px solid #2d3640;
+    border-radius: 8px;
+    padding: 10px 12px;
     margin-bottom: 10px;
-    font-size: 1.08em;
-    line-height: 1.38;
+    color: #c9ffe6;
+    font-family: inherit;
+    font-size: 1rem;
+    transition: border-color 0.2s;
 }
+
+#nova-ai-input:focus {
+    outline: none;
+    border-color: #b4e197;
+}
+
 #nova-ai-send {
     width: 100%;
-    background: #0047ab;
-    color: #fff;
+    padding: 10px 0;
     border: none;
-    border-radius: 7px;
-    padding: 14px;
-    font-size: 1.11em;
-    cursor: pointer;
+    background: #b4e197;
+    color: #222831;
+    border-radius: 8px;
+    font-size: 1rem;
     font-weight: bold;
-    transition: background 0.18s;
-    letter-spacing: 0.05em;
+    cursor: pointer;
+    box-shadow: 0 2px 8px 0 rgba(80, 150, 60, 0.12);
+    transition: background 0.2s, color 0.2s;
 }
-#nova-ai-send:hover {
-    background: #0082ff;
+
+#nova-ai-send:hover,
+#nova-ai-send:active {
+    background: #8ac251;
+    color: #0d171f;
+}
+
+/* Mobile-Optimierung */
+@media (max-width: 600px) {
+    #nova-ai-chatbox {
+        max-width: 98vw;
+        padding: 14px 4vw 12px 4vw;
+        margin: 40px auto 0 auto;
+        font-size: 0.97rem;
+    }
+    #nova-ai-messages {
+        min-height: 50px;
+        max-height: 140px;
+        font-size: 0.96rem;
+        padding: 8px 6px 6px 10px;
+    }
+    #nova-ai-input {
+        min-height: 40px;
+        font-size: 0.97rem;
+        padding: 8px 9px;
+    }
+    #nova-ai-send {
+        padding: 9px 0;
+        font-size: 1rem;
+    }
 }

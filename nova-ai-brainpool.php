@@ -3,7 +3,7 @@
 Plugin Name: Nova AI Brainpool
 Plugin URI: https://derleiti.de
 Description: KI-Chat & Wissensdatenbank für WordPress mit .env-Unterstützung und Ollama-Support
-Version: 1.0.1
+Version: 1.0.4
 Author: Markus Leitermann
 Author URI: https://derleiti.de
 License: GPLv2 or later
@@ -43,14 +43,14 @@ function nova_ai_chat_shortcode($atts = [], $content = null) {
     return ob_get_clean();
 }
 
-// --- AJAX-Handler für den KI-Chat ---
+// --- AJAX-Handler für den KI-Chat, robustes Streaming-Parsing für Ollama ---
 add_action('wp_ajax_nova_ai_chat', 'nova_ai_handle_chat_ajax');
 add_action('wp_ajax_nopriv_nova_ai_chat', 'nova_ai_handle_chat_ajax');
 
 function nova_ai_handle_chat_ajax() {
     $prompt = sanitize_text_field($_POST['prompt'] ?? '');
     $ollama_url = getenv('OLLAMA_URL') ?: 'http://localhost:11434/api/chat';
-    $ollama_model = getenv('OLLAMA_MODEL') ?: 'zephyr'; // <--- Default ist jetzt "zephyr"
+    $ollama_model = getenv('OLLAMA_MODEL') ?: 'zephyr';
 
     if (!$prompt) {
         wp_send_json_error(['msg' => 'Kein Prompt empfangen.']);
@@ -71,12 +71,27 @@ function nova_ai_handle_chat_ajax() {
     if (is_wp_error($res)) {
         wp_send_json_error(['msg' => 'Konnte keine Verbindung zur KI aufbauen.']);
     }
-    $json = json_decode(wp_remote_retrieve_body($res), true);
 
-    if (isset($json['message']['content'])) {
-        wp_send_json_success(['answer' => $json['message']['content']]);
+    $body_raw = wp_remote_retrieve_body($res);
+
+    // --- PATCH: Alle Zeilen-JSONs parsen und zusammenbauen ---
+    $answer = '';
+    foreach (explode("\n", $body_raw) as $line) {
+        $line = trim($line);
+        if ($line === '') continue;
+        $json = json_decode($line, true);
+        if (isset($json['message']['content'])) {
+            $answer .= $json['message']['content'];
+        }
+    }
+
+    if (!$answer) {
+        wp_send_json_error([
+            'msg' => 'Antwort unverständlich.',
+            'debug' => $body_raw
+        ]);
     } else {
-        wp_send_json_error(['msg' => 'Antwort unverständlich.']);
+        wp_send_json_success(['answer' => $answer]);
     }
     wp_die();
 }
