@@ -1,83 +1,92 @@
 <?php
-// Nova AI Brainpool Admin-Settings
+// admin/settings.php – Nova AI Brainpool
 
-// Zeige Seite nur auf unserer Admin-Page
-if (!isset($_GET['page']) || $_GET['page'] !== 'nova-ai-brainpool') {
-    return;
+if (!current_user_can('manage_options')) {
+    wp_die('Keine Berechtigung!');
 }
 
-// Bestehende Crawler-URLs laden
-$crawler_urls = get_option('nova_ai_crawler_urls', []);
-if (!is_array($crawler_urls)) $crawler_urls = [];
-
-// Trainingsdaten laden
-$training_data = get_option('nova_ai_training_data', '');
-
-// Handle POST (Save, Crawl, Export, Import)
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && current_user_can('manage_options')) {
-    if (isset($_POST['crawler_urls'])) {
-        $urls = array_filter(array_map('trim', explode("\n", $_POST['crawler_urls'])));
-        update_option('nova_ai_crawler_urls', $urls);
-        $crawler_urls = $urls;
-    }
-    if (isset($_POST['training_data'])) {
-        update_option('nova_ai_training_data', $_POST['training_data']);
-        $training_data = $_POST['training_data'];
-    }
-    if (isset($_POST['crawl_now'])) {
-        $fetched = [];
-        foreach ($crawler_urls as $url) {
-            $content = wp_remote_retrieve_body(wp_remote_get($url));
-            $clean = wp_strip_all_tags($content);
-            $fetched[] = [
-                'url' => $url,
-                'content' => mb_substr($clean, 0, 10000, 'UTF-8')
-            ];
-        }
-        $all = [];
-        if ($training_data) {
-            $all = json_decode($training_data, true);
-            if (!is_array($all)) $all = [];
-        }
-        foreach ($fetched as $site) {
-            $all[] = $site;
-        }
-        $training_data = json_encode($all, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
-        update_option('nova_ai_training_data', $training_data);
-    }
-    if (isset($_POST['export_training'])) {
-        header('Content-Type: application/json');
-        header('Content-Disposition: attachment; filename="nova_ai_training_data.json"');
-        echo $training_data;
-        exit;
-    }
-    if (isset($_POST['import_training']) && isset($_FILES['training_file'])) {
-        $import = file_get_contents($_FILES['training_file']['tmp_name']);
-        update_option('nova_ai_training_data', $import);
-        $training_data = $import;
+$env = [];
+$env_path = dirname(__DIR__) . '/.env';
+if (file_exists($env_path)) {
+    foreach (file($env_path) as $line) {
+        if (preg_match('/^\s*([\w_]+)\s*=\s*(.*)$/', $line, $m))
+            $env[$m[1]] = trim($m[2]);
     }
 }
 
+// Speicherpfade
+$crawler_file = dirname(__DIR__) . '/crawler-urls.txt';
+$kb_file = dirname(__DIR__) . '/knowledge-base.json';
+
+// Crawler-URLs speichern
+if (isset($_POST['crawl_submit']) && current_user_can('manage_options')) {
+    $urls = trim(str_replace("\r", '', $_POST['crawler_urls'] ?? ''));
+    file_put_contents($crawler_file, $urls);
+    $crawler_msg = "Crawler-URLs gespeichert.";
+}
+// JSON importieren
+if (isset($_POST['json_import']) && current_user_can('manage_options') && !empty($_FILES['json_upload']['tmp_name'])) {
+    $json = file_get_contents($_FILES['json_upload']['tmp_name']);
+    json_decode($json); // Validate
+    if (json_last_error() === JSON_ERROR_NONE) {
+        file_put_contents($kb_file, $json);
+        $kb_msg = "Trainingsdaten importiert.";
+    } else {
+        $kb_msg = "Fehler: Ungültige JSON-Datei!";
+    }
+}
+// JSON als Textfeld speichern
+if (isset($_POST['json_text_save']) && current_user_can('manage_options')) {
+    $json = trim($_POST['kb_json'] ?? '');
+    json_decode($json); // Validate
+    if ($json && json_last_error() === JSON_ERROR_NONE) {
+        file_put_contents($kb_file, $json);
+        $kb_msg = "Trainingsdaten gespeichert.";
+    } else {
+        $kb_msg = "Fehler: Ungültiges JSON!";
+    }
+}
+// JSON exportieren
+$kb_json = file_exists($kb_file) ? file_get_contents($kb_file) : '';
+$crawler_urls = file_exists($crawler_file) ? file_get_contents($crawler_file) : '';
 ?>
-<div class="wrap" style="max-width:900px;">
-    <h1>Nova AI Brainpool – Einstellungen &amp; Trainingsdaten</h1>
-    <form method="post" enctype="multipart/form-data">
-        <h2>Webseiten für Crawler</h2>
-        <p>Gib eine oder mehrere URLs (eine pro Zeile) an, die für den Wissensimport gecrawlt werden sollen.</p>
-        <textarea name="crawler_urls" rows="6" style="width:100%;font-family:monospace;"><?php echo esc_textarea(implode("\n", $crawler_urls)); ?></textarea>
-        <br>
-        <button type="submit" class="button button-primary" name="save_urls">Speichern</button>
-        <button type="submit" class="button" name="crawl_now">Jetzt Crawlen &amp; importieren</button>
 
-        <hr>
-        <h2>Trainingsdaten (Knowledge Base)</h2>
-        <p>Hier kannst du die gesammelten Trainingsdaten einsehen, bearbeiten, exportieren oder importieren.</p>
-        <textarea name="training_data" rows="12" style="width:100%;font-family:monospace;"><?php echo esc_textarea($training_data); ?></textarea>
+<div class="wrap">
+    <h2>Nova AI Brainpool – Einstellungen & Trainingsdaten</h2>
+    <p>
+        Shortcode für Chat: <code>[nova_ai_chat]</code>
         <br>
-        <button type="submit" class="button" name="save_data">Trainingsdaten speichern</button>
-        <button type="submit" class="button" name="export_training">Exportieren (JSON)</button>
-        <input type="file" name="training_file" accept="application/json">
-        <button type="submit" class="button" name="import_training">Importieren (JSON)</button>
+        <strong>.env Status:</strong>
+        <?php echo file_exists($env_path) ? '<span style="color:#5fa;">Gefunden!</span>' : '<span style="color:#f44;">Fehlt!</span>'; ?>
+    </p>
+    <pre style="background:#23272c;color:#b8e994;padding:10px;border-radius:6px;max-width:640px;">
+OLLAMA_URL=<?php echo esc_html($env['OLLAMA_URL'] ?? ''); ?>
+
+OLLAMA_MODEL=<?php echo esc_html($env['OLLAMA_MODEL'] ?? ''); ?>
+    </pre>
+
+    <!-- Crawler URLs -->
+    <h3>Crawler-URLs (jede Zeile eine Seite)</h3>
+    <?php if (!empty($crawler_msg)) echo "<p style='color:green;'>$crawler_msg</p>"; ?>
+    <form method="post">
+        <textarea style="width:100%;max-width:640px;" rows="3" name="crawler_urls" placeholder="https://deine-seite.de/page"><?php echo esc_textarea($crawler_urls); ?></textarea><br>
+        <button type="submit" name="crawl_submit">Speichern</button>
     </form>
-    <p><small>Fragen, Ideen? <a href="mailto:admin@derleiti.de">admin@derleiti.de</a></small></p>
+
+    <!-- Knowledge Base Import/Export -->
+    <h3>Trainingsdaten (Knowledge Base)</h3>
+    <?php if (!empty($kb_msg)) echo "<p style='color:green;'>$kb_msg</p>"; ?>
+    <form method="post" enctype="multipart/form-data" style="margin-bottom:18px;">
+        <input type="file" name="json_upload" accept=".json">
+        <button type="submit" name="json_import">Importieren (JSON-Datei)</button>
+    </form>
+    <form method="post">
+        <textarea name="kb_json" rows="7" style="width:100%;max-width:640px;" placeholder="{ &quot;beispiel&quot;: &quot;dein Wissen&quot; }"><?php echo esc_textarea($kb_json); ?></textarea><br>
+        <button type="submit" name="json_text_save">Speichern</button>
+        <a href="<?php echo plugins_url('../knowledge-base.json', __FILE__); ?>" download style="margin-left:16px;">Export als JSON</a>
+    </form>
+
+    <p style="font-size:0.9em;color:#666;margin-top:24px;">
+        Feedback &amp; Fragen: <a href="mailto:admin@derleiti.de">admin@derleiti.de</a>
+    </p>
 </div>
