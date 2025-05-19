@@ -1,110 +1,93 @@
-/* Volle Breite, modernes Chat-Panel */
-#nova-ai-chatbox {
+.nova-ai-chat-container {
     display: flex;
     flex-direction: column;
+    justify-content: center;
     align-items: center;
-    justify-content: flex-start;
-    width: 95vw;
-    max-width: 950px;
+    min-height: 75vh;
+    width: 100vw;
+    margin: 0 auto;
+    padding: 0;
+}
+.nova-ai-chatbox {
+    background: #181e25;
+    color: #b8e994;
+    border-radius: 18px;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+    width: 98vw;
+    max-width: 900px;
     min-width: 320px;
-    margin: 48px auto 0 auto;
-    background: #181e24;
-    border-radius: 20px;
-    box-shadow: 0 10px 40px 0 rgba(0,0,0,0.20);
-    padding: 36px 28px 24px 28px;
-    min-height: 320px;
+    min-height: 450px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    overflow: hidden;
 }
-
-#nova-ai-messages {
-    width: 100%;
-    min-height: 120px;
-    max-height: 340px;
+.nova-ai-chat-messages {
+    flex: 1 1 auto;
     overflow-y: auto;
-    background: #151a1e;
-    border-radius: 12px;
-    color: #b4e197;
-    font-family: 'Fira Mono', monospace, monospace;
-    font-size: 1.18rem;
-    padding: 18px 14px 12px 22px;
-    margin-bottom: 18px;
-    word-break: break-word;
-    transition: background 0.2s;
+    padding: 32px 28px 0 28px;
+    font-family: 'Fira Mono', 'Consolas', monospace;
+    font-size: 1.09em;
 }
-
-#nova-ai-input {
-    width: 100%;
-    min-height: 54px;
-    max-height: 180px;
+.nova-ai-chat-input-row {
+    display: flex;
+    padding: 24px;
+    background: #12171d;
+    border-top: 1px solid #252c36;
+    gap: 16px;
+}
+.nova-ai-chat-input {
+    flex: 1 1 auto;
     resize: vertical;
-    background: #13181e;
-    border: 1.5px solid #2d3640;
-    border-radius: 10px;
-    padding: 14px 14px 14px 14px;
-    margin-bottom: 14px;
-    color: #c9ffe6;
-    font-family: inherit;
-    font-size: 1.13rem;
-    transition: border-color 0.2s;
-}
-
-#nova-ai-input:focus {
+    border-radius: 6px;
+    border: 1px solid #252c36;
+    background: #181e25;
+    color: #b8e994;
+    padding: 14px;
+    min-height: 56px;
+    max-height: 200px;
+    font-size: 1.15em;
     outline: none;
-    border-color: #b4e197;
 }
-
-#nova-ai-send {
-    width: 100%;
-    padding: 15px 0;
+.nova-ai-chat-send-btn {
+    background: #2860c4;
+    color: #fff;
     border: none;
-    background: #b4e197;
-    color: #222831;
-    border-radius: 10px;
-    font-size: 1.12rem;
-    font-weight: bold;
+    padding: 0 32px;
+    border-radius: 8px;
+    font-size: 1.09em;
     cursor: pointer;
-    box-shadow: 0 3px 14px 0 rgba(80, 150, 60, 0.13);
-    transition: background 0.2s, color 0.2s;
+    transition: background 0.2s;
+    height: 56px;
 }
-
-#nova-ai-send:hover,
-#nova-ai-send:active {
-    background: #8ac251;
-    color: #0d171f;
+.nova-ai-chat-send-btn:hover {
+    background: #3b82f6;
 }
-
-#nova-ai-chatbox,
-#nova-ai-messages,
-#nova-ai-input,
-#nova-ai-send {
-    box-sizing: border-box;
+.nova-ai-msg {
+    margin-bottom: 13px;
+    line-height: 1.5;
 }
-
-/* Responsive Mobile */
+.nova-ai-msg.ai b { color: #b8e994; }
+.nova-ai-msg.user b { color: #39c3ff; }
 @media (max-width: 900px) {
-    #nova-ai-chatbox {
-        width: 99vw;
-        max-width: 99vw;
-        padding: 13vw 2vw 10vw 2vw;
-        font-size: 1.02rem;
-        margin-top: 25px;
+    .nova-ai-chatbox { max-width: 99vw; }
+}
+@media (max-width: 600px) {
+    .nova-ai-chatbox {
+        max-width: 100vw;
+        min-width: 0;
+        min-height: 240px;
         border-radius: 0;
     }
-    #nova-ai-messages {
-        min-height: 80px;
-        max-height: 200px;
-        font-size: 1rem;
-        padding: 8px 6px 6px 10px;
-        border-radius: 0;
+    .nova-ai-chat-messages {
+        padding: 10px 6px 0 6px;
+        font-size: 1em;
     }
-    #nova-ai-input {
-        min-height: 38px;
-        font-size: 1rem;
-        padding: 7px 7px;
-        border-radius: 0;
-    }
-    #nova-ai-send {
-        padding: 11px 0;
-        font-size: 1rem;
-        border-radius: 0;
+    .nova-ai-chat-input-row {
+        padding: 8px;
+        gap: 6px;
     }
 }
+::-webkit-scrollbar { width: 6px; background: #111 }
+::-webkit-scrollbar-thumb { background: #333; border-radius: 3px }

@@ -5,8 +5,13 @@ document.addEventListener('DOMContentLoaded', function() {
     const textarea = document.getElementById('nova-ai-input');
     const send = document.getElementById('nova-ai-send');
     const messages = document.getElementById('nova-ai-messages');
+    const form = document.getElementById('nova-ai-chat-form');
 
-    send.addEventListener('click', sendMessage);
+    // Senden mit Button oder Enter, neue Zeile mit Shift+Enter
+    form.addEventListener('submit', function(e) {
+        e.preventDefault();
+        sendMessage();
+    });
     textarea.addEventListener('keydown', function(e) {
         if (e.key === 'Enter' && !e.shiftKey) {
             e.preventDefault();
