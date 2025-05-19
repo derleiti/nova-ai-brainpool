@@ -15,33 +15,24 @@ class Nova_AI_Brainpool_API {
     }
 
     public function handle_ai_chat() {
-
         $message = sanitize_text_field($_POST['message'] ?? '');
 
         if (empty($message)) {
-            wp_send_json_error('No message provided.');
+            wp_send_json_error(__('Keine Nachricht übergeben.', 'nova-ai-brainpool'));
         }
 
-        // AI Power - Dummy KI Antwort (hier später API Call z.B. OpenAI, Ollama, Nova API)
-        $ai_reply = $this->get_ai_response($message);
-
-        wp_send_json_success(array(
-            'reply' => $ai_reply
-        ));
-    }
-
-    private function get_ai_response($message) {
-
-        // Platzhalter KI Logik
-        if (stripos($message, 'hilfe') !== false) {
-            return "Nova sagt: Benötigst du Hilfe? 📖";
+        if (!function_exists('nova_ai_chat_response')) {
+            wp_send_json_error(__('KI-Funktion nicht verfügbar.', 'nova-ai-brainpool'));
         }
 
-        if (stripos($message, 'update') !== false) {
-            return "Nova meldet: Alle Systeme aktuell. 🧠✅";
-        }
+        try {
+            $ai_reply = nova_ai_chat_response($message);
 
-        // Default AI Antwort
-        return "Nova: Ich habe deine Nachricht erhalten: \"$message\"";
+            wp_send_json_success(array(
+                'reply' => $ai_reply
+            ));
+        } catch (Exception $e) {
+            wp_send_json_error(__('Fehler bei der KI-Antwort: ', 'nova-ai-brainpool') . $e->getMessage());
+        }
     }
 }

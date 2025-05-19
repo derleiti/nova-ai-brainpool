@@ -97,9 +97,19 @@ function nova_ai_handle_vision($request) {
             nova_ai_update_chat_stats();
         }
         
-        return rest_ensure_response(json_decode($body, true));
+        $decoded = json_decode($body, true);
+        if (json_last_error() !== JSON_ERROR_NONE || !is_array($decoded)) {
+            return new WP_REST_Response(array('error' => __('Invalid API response.', 'nova-ai-brainpool')), 502);
+        }
+
+        // Update stats
+        if (function_exists('nova_ai_update_chat_stats')) {
+            nova_ai_update_chat_stats();
+        }
+
+        return rest_ensure_response($decoded);
     } catch (Exception $e) {
-        nova_ai_log('Vision API Error: ' . $e->getMessage(), 'error');
+        if (function_exists('nova_ai_log')) nova_ai_log('Vision API Error: ' . $e->getMessage(), 'error');
         return new WP_REST_Response(array('error' => $e->getMessage()), 500);
     }
 }

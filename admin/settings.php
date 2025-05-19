@@ -172,7 +172,48 @@ function nova_ai_register_settings() {
         'nova_ai_main_section'
     );
     
+    
     add_settings_field(
+        'nova_ai_api_url',
+        __('API URL', 'nova-ai-brainpool'),
+        'nova_ai_api_url_field',
+        'nova-ai-settings',
+        'nova_ai_main_section'
+    );
+
+    add_settings_field(
+        'nova_ai_api_key',
+        __('API Key', 'nova-ai-brainpool'),
+        'nova_ai_api_key_field',
+        'nova-ai-settings',
+        'nova_ai_main_section'
+    );
+
+    add_settings_field(
+        'nova_ai_chat_position',
+        __('Chat Position', 'nova-ai-brainpool'),
+        'nova_ai_chat_position_field',
+        'nova-ai-settings',
+        'nova_ai_main_section'
+    );
+
+    add_settings_field(
+        'nova_ai_system_prompt',
+        __('System Prompt', 'nova-ai-brainpool'),
+        'nova_ai_system_prompt_field',
+        'nova-ai-settings',
+        'nova_ai_main_section'
+    );
+
+    add_settings_field(
+        'nova_ai_temperature',
+        __('Temperature', 'nova-ai-brainpool'),
+        'nova_ai_temperature_field',
+        'nova-ai-settings',
+        'nova_ai_main_section'
+    );
+
+add_settings_field(
         'nova_ai_theme_style',
         __('Theme Style', 'nova-ai-brainpool'),
         'nova_ai_theme_field',
@@ -248,4 +289,36 @@ function nova_ai_fullsite_chat_field() {
     </label>
     <p class="description"><?php esc_html_e('When enabled, a chat button will appear on all pages of your site.', 'nova-ai-brainpool'); ?></p>
     <?php
+}
+
+
+
+function nova_ai_api_url_field() {
+    $value = get_option('nova_ai_api_url', '');
+    echo '<input type="text" name="nova_ai_api_url" value="' . esc_attr($value) . '" class="regular-text" />';
+}
+
+function nova_ai_api_key_field() {
+    $value = get_option('nova_ai_api_key', '');
+    echo '<input type="text" name="nova_ai_api_key" value="' . esc_attr($value) . '" class="regular-text" />';
+}
+
+function nova_ai_chat_position_field() {
+    $value = get_option('nova_ai_chat_position', 'bottom-right');
+    echo '<select name="nova_ai_chat_position">
+        <option value="bottom-right" ' . selected($value, 'bottom-right', false) . '>Bottom Right</option>
+        <option value="bottom-left" ' . selected($value, 'bottom-left', false) . '>Bottom Left</option>
+        <option value="top-right" ' . selected($value, 'top-right', false) . '>Top Right</option>
+        <option value="top-left" ' . selected($value, 'top-left', false) . '>Top Left</option>
+    </select>';
+}
+
+function nova_ai_system_prompt_field() {
+    $value = get_option('nova_ai_system_prompt', '');
+    echo '<textarea name="nova_ai_system_prompt" rows="4" cols="50" class="large-text">' . esc_textarea($value) . '</textarea>';
+}
+
+function nova_ai_temperature_field() {
+    $value = get_option('nova_ai_temperature', '0.7');
+    echo '<input type="number" name="nova_ai_temperature" value="' . esc_attr($value) . '" step="0.1" min="0" max="1" />';
 }

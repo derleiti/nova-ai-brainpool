@@ -50,7 +50,7 @@ class Nova_AI_API {
         $api_url = esc_url_raw($api_url);
         $system_prompt = sanitize_textarea_field($system_prompt);
         $temperature = floatval($temperature);
-        $max_tokens = absint($max_tokens);
+        $max_tokens = min(absint($max_tokens), 800);
         
         // Normalize API URL
         $api_url = rtrim($api_url, '/');
@@ -89,7 +89,7 @@ class Nova_AI_API {
             $request_body = [
                 'model' => $model,
                 'messages' => $messages,
-                'stream' => false,
+                'stream' => get_option('nova_ai_enable_streaming', false),
                 'temperature' => $temperature,
                 'max_tokens' => $max_tokens
             ];
@@ -113,7 +113,7 @@ class Nova_AI_API {
                 $request_body = [
                     'model' => $model,
                     'prompt' => $prompt_text,
-                    'stream' => false,
+                    'stream' => get_option('nova_ai_enable_streaming', false),
                     'temperature' => $temperature,
                     'max_tokens' => $max_tokens
                 ];
@@ -123,7 +123,7 @@ class Nova_AI_API {
             $request_body = [
                 'model' => $model,
                 'prompt' => $system_prompt . "\n\nUser: " . $prompt . "\n\nAssistant:",
-                'stream' => false,
+                'stream' => get_option('nova_ai_enable_streaming', false),
                 'temperature' => $temperature,
                 'max_tokens' => $max_tokens
             ];
@@ -182,7 +182,7 @@ class Nova_AI_API {
         // Handle response errors
         if (is_wp_error($response)) {
             nova_ai_log('Ollama API Error: ' . $response->get_error_message(), 'error');
-            throw new Exception('Connection error: ' . $response->get_error_message());
+            throw new Exception(__('Verbindungsfehler: ', 'nova-ai-brainpool') . $response->get_error_message());
         }
         
         $status_code = wp_remote_retrieve_response_code($response);
@@ -192,7 +192,7 @@ class Nova_AI_API {
             $error_message = isset($error_data['error']) ? $error_data['error'] : 'HTTP Error: ' . $status_code;
             
             nova_ai_log('Ollama API Error: ' . $error_message . ' (Status: ' . $status_code . ')', 'error');
-            throw new Exception('API Error: ' . $error_message);
+            throw new Exception(__('API-Fehler: ', 'nova-ai-brainpool') . $error_message);
         }
         
         $body = wp_remote_retrieve_body($response);
@@ -215,7 +215,7 @@ class Nova_AI_API {
         } else {
             // Unexpected format
             nova_ai_log('Ollama API Error: Unexpected response format - ' . $body, 'error');
-            throw new Exception('Unexpected response format from the AI provider.');
+            throw new Exception(__('Unerwartetes Antwortformat vom KI-Anbieter.', 'nova-ai-brainpool'));
         }
         
         // Clean and trim response
@@ -238,7 +238,7 @@ class Nova_AI_API {
         $api_key = sanitize_text_field($api_key);
         $system_prompt = sanitize_textarea_field($system_prompt);
         $temperature = floatval($temperature);
-        $max_tokens = absint($max_tokens);
+        $max_tokens = min(absint($max_tokens), 800);
         
         // Check for cached response if caching is enabled
         if (apply_filters('nova_ai_enable_caching', true)) {
@@ -351,7 +351,7 @@ class Nova_AI_API {
         // Handle response errors
         if (is_wp_error($response)) {
             nova_ai_log('OpenAI API Error: ' . $response->get_error_message(), 'error');
-            throw new Exception('Connection error: ' . $response->get_error_message());
+            throw new Exception(__('Verbindungsfehler: ', 'nova-ai-brainpool') . $response->get_error_message());
         }
         
         $status_code = wp_remote_retrieve_response_code($response);
@@ -361,7 +361,7 @@ class Nova_AI_API {
             $error_message = isset($error_data['error']['message']) ? $error_data['error']['message'] : 'HTTP Error: ' . $status_code;
             
             nova_ai_log('OpenAI API Error: ' . $error_message . ' (Status: ' . $status_code . ')', 'error');
-            throw new Exception('API Error: ' . $error_message);
+            throw new Exception(__('API-Fehler: ', 'nova-ai-brainpool') . $error_message);
         }
         
         $body = wp_remote_retrieve_body($response);
@@ -370,7 +370,7 @@ class Nova_AI_API {
         // Check if we have a valid response
         if (!isset($data['choices'][0]['message']['content'])) {
             nova_ai_log('OpenAI API Error: Unexpected response format - ' . $body, 'error');
-            throw new Exception('Unexpected response format from the AI provider.');
+            throw new Exception(__('Unerwartetes Antwortformat vom KI-Anbieter.', 'nova-ai-brainpool'));
         }
         
         // Extract and clean the response

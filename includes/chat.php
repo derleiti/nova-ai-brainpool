@@ -78,7 +78,12 @@ function nova_ai_chat_handler($request) {
         }
 
         // Initialize API handler
+        
+        if (!class_exists('Nova_AI_API')) {
+            return new WP_Error('missing_class', __('Nova_AI_API class is missing.', 'nova-ai-brainpool'), array('status' => 500));
+        }
         $api = Nova_AI_API::get_instance();
+    
 
         // Make API request based on type
         if ($api_type === 'ollama') {
@@ -95,6 +100,11 @@ function nova_ai_chat_handler($request) {
         // Log success
         if (function_exists('nova_ai_log')) {
             nova_ai_log('Chat API request successful', 'info');
+        }
+
+        
+        if (empty($response)) {
+            return new WP_Error('empty_response', __('The AI did not return a response.', 'nova-ai-brainpool'), array('status' => 502));
         }
 
         return array('reply' => $response);
