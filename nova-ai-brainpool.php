@@ -1,97 +1,40 @@
 <?php
 /*
 Plugin Name: Nova AI Brainpool
-Plugin URI: https://derleiti.de
-Description: KI-Chat & Wissensdatenbank für WordPress mit .env-Unterstützung und Ollama-Support
-Version: 1.0.4
-Author: Markus Leitermann
-Author URI: https://derleiti.de
-License: GPLv2 or later
-Text Domain: nova-ai-brainpool
+Description: Einfacher AI Chatbot und Knowledge Base für WordPress – powered by Ollama/Zephyr.
+Version: 1.0
+Author: derleiti
 */
 
 if (!defined('ABSPATH')) exit;
 
-define('NOVA_AI_PATH', plugin_dir_path(__FILE__));
-define('NOVA_AI_URL', plugin_dir_url(__FILE__));
-
-require_once NOVA_AI_PATH . 'admin/env-loader.php';
-
-if (is_admin()) {
-    require_once NOVA_AI_PATH . 'admin/settings.php';
-}
-
-add_action('init', function() {
-    wp_register_script('nova-ai-chat', NOVA_AI_URL . 'assets/chat-frontend.js', [], false, true);
-    wp_register_style('nova-ai-chat-css', NOVA_AI_URL . 'assets/chat-frontend.css', [], false);
-    add_shortcode('nova_ai_chat', 'nova_ai_chat_shortcode');
+// Admin-Menu und Settings-Page einbinden
+add_action('admin_menu', function () {
+    add_menu_page(
+        'Nova AI Brainpool',
+        'Nova AI Brainpool',
+        'manage_options',
+        'nova-ai-brainpool',
+        function () {
+            include __DIR__ . '/admin/settings.php';
+        },
+        'dashicons-admin-generic'
+    );
 });
 
-function nova_ai_chat_shortcode($atts = [], $content = null) {
-    wp_enqueue_script('nova-ai-chat');
-    wp_enqueue_style('nova-ai-chat-css');
-    wp_localize_script('nova-ai-chat', 'nova_ai_chat_ajax', [
-        'ajaxurl' => admin_url('admin-ajax.php')
-    ]);
-    ob_start(); ?>
-    <div id="nova-ai-chatbox">
-        <div id="nova-ai-messages"></div>
-        <textarea id="nova-ai-input" rows="4" placeholder="Frag die Nova KI... (Shift+Enter = neue Zeile)" autocomplete="off"></textarea>
-        <button id="nova-ai-send">Senden</button>
+// [nova_ai_chat] Shortcode für den Chat einbinden
+add_shortcode('nova_ai_chat', function ($atts) {
+    ob_start();
+    ?>
+    <div id="nova-ai-chat-container" style="display:flex;flex-direction:column;align-items:center;justify-content:center;width:100vw;min-height:55vh;max-width:100vw;">
+        <div id="nova-ai-chat-box" style="width:100%;max-width:400px;background:#181f25;color:#aef989;margin:20px auto;padding:20px;border-radius:10px;box-shadow:0 0 16px #111;display:flex;flex-direction:column;align-items:stretch;">
+            <div id="nova-ai-messages" style="min-height:80px;font-family:monospace;font-size:1rem;word-break:break-word;line-height:1.35em;"></div>
+            <textarea id="nova-ai-input" style="margin-top:16px;width:100%;height:70px;resize:vertical;padding:8px;background:#222;color:#aef989;font-family:monospace;" placeholder="Frag die Nova KI... (Shift+Enter = neue Zeile)"></textarea>
+            <button id="nova-ai-send" style="margin-top:10px;background:#286fbe;color:#fff;padding:6px 16px;border:none;border-radius:4px;font-size:1rem;cursor:pointer;">Senden</button>
+        </div>
     </div>
+    <script src="<?php echo plugins_url('assets/chat-frontend.js', __FILE__); ?>"></script>
+    <link rel="stylesheet" href="<?php echo plugins_url('assets/chat-frontend.css', __FILE__); ?>">
     <?php
     return ob_get_clean();
-}
-
-// --- AJAX-Handler für den KI-Chat, robustes Streaming-Parsing für Ollama ---
-add_action('wp_ajax_nova_ai_chat', 'nova_ai_handle_chat_ajax');
-add_action('wp_ajax_nopriv_nova_ai_chat', 'nova_ai_handle_chat_ajax');
-
-function nova_ai_handle_chat_ajax() {
-    $prompt = sanitize_text_field($_POST['prompt'] ?? '');
-    $ollama_url = getenv('OLLAMA_URL') ?: 'http://localhost:11434/api/chat';
-    $ollama_model = getenv('OLLAMA_MODEL') ?: 'zephyr';
-
-    if (!$prompt) {
-        wp_send_json_error(['msg' => 'Kein Prompt empfangen.']);
-    }
-
-    $body = [
-        'model' => $ollama_model,
-        'messages' => [
-            ['role' => 'user', 'content' => $prompt]
-        ]
-    ];
-    $args = [
-        'body' => json_encode($body),
-        'headers' => ['Content-Type' => 'application/json']
-    ];
-    $res = wp_remote_post($ollama_url, $args);
-
-    if (is_wp_error($res)) {
-        wp_send_json_error(['msg' => 'Konnte keine Verbindung zur KI aufbauen.']);
-    }
-
-    $body_raw = wp_remote_retrieve_body($res);
-
-    // --- PATCH: Alle Zeilen-JSONs parsen und zusammenbauen ---
-    $answer = '';
-    foreach (explode("\n", $body_raw) as $line) {
-        $line = trim($line);
-        if ($line === '') continue;
-        $json = json_decode($line, true);
-        if (isset($json['message']['content'])) {
-            $answer .= $json['message']['content'];
-        }
-    }
-
-    if (!$answer) {
-        wp_send_json_error([
-            'msg' => 'Antwort unverständlich.',
-            'debug' => $body_raw
-        ]);
-    } else {
-        wp_send_json_success(['answer' => $answer]);
-    }
-    wp_die();
-}
+});

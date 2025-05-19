@@ -1,14 +1,19 @@
 <?php
 // Nova AI Brainpool Admin-Settings
 
-// Simple: Hole bestehende Crawler-URLs
+// Zeige Seite nur auf unserer Admin-Page
+if (!isset($_GET['page']) || $_GET['page'] !== 'nova-ai-brainpool') {
+    return;
+}
+
+// Bestehende Crawler-URLs laden
 $crawler_urls = get_option('nova_ai_crawler_urls', []);
 if (!is_array($crawler_urls)) $crawler_urls = [];
 
-// Hole Trainingsdaten (als Text oder JSON)
+// Trainingsdaten laden
 $training_data = get_option('nova_ai_training_data', '');
 
-// Handle POST (Save URLs, Save Data, Crawl, Export, Import)
+// Handle POST (Save, Crawl, Export, Import)
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && current_user_can('manage_options')) {
     if (isset($_POST['crawler_urls'])) {
         $urls = array_filter(array_map('trim', explode("\n", $_POST['crawler_urls'])));
@@ -20,17 +25,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && current_user_can('manage_options'))
         $training_data = $_POST['training_data'];
     }
     if (isset($_POST['crawl_now'])) {
-        // Basic: Hole Text von jeder Ziel-URL (simple, nicht JS!)
         $fetched = [];
         foreach ($crawler_urls as $url) {
             $content = wp_remote_retrieve_body(wp_remote_get($url));
             $clean = wp_strip_all_tags($content);
             $fetched[] = [
                 'url' => $url,
-                'content' => mb_substr($clean, 0, 10000, 'UTF-8') // 10k Zeichen Max
+                'content' => mb_substr($clean, 0, 10000, 'UTF-8')
             ];
         }
-        // Trainingsdaten erweitern
         $all = [];
         if ($training_data) {
             $all = json_decode($training_data, true);
@@ -55,7 +58,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && current_user_can('manage_options'))
     }
 }
 
-// Show Settings HTML
 ?>
 <div class="wrap" style="max-width:900px;">
     <h1>Nova AI Brainpool – Einstellungen &amp; Trainingsdaten</h1>
