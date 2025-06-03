@@ -1,0 +1,474 @@
+# Nova AI Brainpool Installation Guide
+
+## Systemanforderungen
+
+### Minimum Requirements
+- **WordPress**: 5.0 oder höher
+- **PHP**: 7.4 oder höher (8.0+ empfohlen)
+- **MySQL**: 5.6 oder höher (8.0+ empfohlen)
+- **Memory Limit**: 256MB (512MB+ empfohlen)
+- **Disk Space**: 50MB für Plugin + zusätzlicher Platz für generierte Bilder
+- **cURL**: Aktiviert (für API-Kommunikation)
+- **OpenSSL**: Aktiviert (für sichere Verbindungen)
+
+### Empfohlene Konfiguration
+- **PHP**: 8.2+
+- **Memory Limit**: 512MB+
+- **Max Execution Time**: 300 Sekunden
+- **Upload Max Filesize**: 32MB+
+- **Post Max Size**: 32MB+
+
+## Installationsmethoden
+
+### Methode 1: WordPress Admin Dashboard (Empfohlen)
+
+1. **Plugin hochladen**
+   ```
+   WordPress Admin → Plugins → Plugin hinzufügen → Plugin hochladen
+   ```
+
+2. **ZIP-Datei auswählen**
+   - Wählen Sie die `nova-ai-brainpool.zip` Datei
+   - Klicken Sie auf "Jetzt installieren"
+
+3. **Plugin aktivieren**
+   - Klicken Sie auf "Plugin aktivieren"
+
+### Methode 2: FTP/SFTP Upload
+
+1. **Dateien extrahieren**
+   ```bash
+   unzip nova-ai-brainpool.zip
+   ```
+
+2. **Dateien hochladen**
+   ```bash
+   # Via FTP/SFTP
+   cd /path/to/wordpress/wp-content/plugins/
+   upload nova-ai-brainpool/ folder
+   ```
+
+3. **Plugin aktivieren**
+   - WordPress Admin → Plugins → Nova AI Brainpool → Aktivieren
+
+### Methode 3: WP-CLI (für Entwickler)
+
+```bash
+# Plugin installieren
+wp plugin install nova-ai-brainpool.zip
+
+# Plugin aktivieren
+wp plugin activate nova-ai-brainpool
+```
+
+## Erstkonfiguration
+
+### Schritt 1: Grundeinstellungen
+
+1. **Navigieren Sie zum Plugin**
+   ```
+   WordPress Admin → Nova AI → Settings
+   ```
+
+2. **AI Provider konfigurieren**
+   - Wählen Sie Ihren bevorzugten Provider (AI Linux empfohlen)
+   - Geben Sie Ihren API-Schlüssel ein
+   - Testen Sie die Verbindung
+
+### Schritt 2: API-Konfiguration
+
+#### AI Linux (Empfohlen)
+```
+API URL: https://ailinux.me/api/v1
+API Key: [Ihr AI Linux API Key]
+Model: gpt-4
+```
+
+#### OpenAI
+```
+API URL: https://api.openai.com/v1
+API Key: [Ihr OpenAI API Key]
+Model: gpt-4 oder gpt-3.5-turbo
+```
+
+#### Anthropic Claude
+```
+API URL: https://api.anthropic.com/v1
+API Key: [Ihr Anthropic API Key]
+Model: claude-3-sonnet
+```
+
+### Schritt 3: Erweiterte Konfiguration
+
+#### Web Crawler konfigurieren
+1. **Crawler-Einstellungen**
+   ```
+   Crawler aktivieren: ✓
+   Auto-Crawl aktivieren: ✓
+   Crawl-Intervall: Stündlich
+   Max. Tiefe: 3
+   Verzögerung: 1000ms
+   ```
+
+2. **Crawl-Sites hinzufügen**
+   ```
+   https://ailinux.me
+   https://ailinux.me/blog
+   https://ailinux.me/docs
+   [Ihre eigenen URLs]
+   ```
+
+#### Bildgenerierung konfigurieren
+```
+Bildgenerierung aktivieren: ✓
+Stable Diffusion API URL: https://ailinux.me:7860
+Max. Bildgröße: 1024px
+```
+
+## Umgebungsvariablen (.env)
+
+### .env Datei erstellen
+
+1. **Kopieren Sie die Beispieldatei**
+   ```bash
+   cd /path/to/wordpress/wp-content/plugins/nova-ai-brainpool/
+   cp .env.example .env
+   ```
+
+2. **Konfigurieren Sie Ihre Einstellungen**
+   ```bash
+   nano .env
+   ```
+
+### Wichtige Umgebungsvariablen
+
+```bash
+# Pflichtfelder
+NOVA_AI_ACTIVE_PROVIDER=ailinux
+NOVA_AI_API_URL=https://ailinux.me/api/v1
+NOVA_AI_API_KEY=your_api_key_here
+
+# Crawler
+NOVA_AI_CRAWL_SITES=["https://ailinux.me", "https://yourdomain.com"]
+
+# Bildgenerierung
+NOVA_AI_IMAGE_API_URL=https://ailinux.me:7860
+
+# NovaNet (optional)
+NOVA_AI_NOVANET_ENABLED=false
+NOVA_AI_NOVANET_URL=https://ailinux.me/novanet
+```
+
+## Datenbankeinrichtung
+
+Das Plugin erstellt automatisch folgende Tabellen:
+
+- `wp_nova_ai_conversations` - Chat-Unterhaltungen
+- `wp_nova_ai_messages` - Chat-Nachrichten
+- `wp_nova_ai_crawled_content` - Gecrawlte Inhalte
+- `wp_nova_ai_generated_images` - Generierte Bilder
+
+### Manuelle Datenbankeinrichtung (falls erforderlich)
+
+```sql
+-- Falls die automatische Installation fehlschlägt
+-- WordPress Admin → Nova AI → Dashboard → System-Tools → DB reparieren
+```
+
+## Shortcodes einrichten
+
+### Chat-Interface
+```php
+// Einfacher Chat
+[nova_ai_chat]
+
+// Erweiterte Optionen
+[nova_ai_chat theme="dark" height="600px" show_image_generator="true" show_crawler="true"]
+```
+
+### Bildgenerator
+```php
+// Standalone Bildgenerator
+[nova_ai_image_generator]
+
+// Mit Theme
+[nova_ai_image_generator theme="modern"]
+```
+
+### PHP Integration
+```php
+// Programmatische Verwendung
+if (function_exists('nova_ai_brainpool_init')) {
+    $nova_ai = nova_ai_brainpool_init();
+    // Verwenden Sie die API
+}
+```
+
+## Konfiguration der Stable Diffusion API
+
+### Lokale Installation (empfohlen)
+
+1. **Automatic1111 WebUI installieren**
+   ```bash
+   git clone https://github.com/AUTOMATIC1111/stable-diffusion-webui.git
+   cd stable-diffusion-webui
+   ./webui.sh --api --listen
+   ```
+
+2. **API-Zugriff konfigurieren**
+   ```
+   URL: http://localhost:7860
+   oder
+   URL: https://yourdomain.com:7860
+   ```
+
+### Cloud-Service (AI Linux)
+```
+URL: https://ailinux.me:7860
+API Key: [Optional - kontaktieren Sie AI Linux]
+```
+
+## NovaNet konfigurieren
+
+### NovaNet aktivieren
+
+1. **Einstellungen**
+   ```
+   NovaNet aktivieren: ✓
+   NovaNet URL: https://ailinux.me/novanet
+   API Key: [Optional]
+   Auto-Share: Nach Bedarf
+   ```
+
+2. **Node registrieren**
+   ```
+   WordPress Admin → Nova AI → NovaNet → "Register with NovaNet"
+   ```
+
+## Sicherheitskonfiguration
+
+### API-Sicherheit
+```bash
+# .env Konfiguration
+NOVA_AI_API_TIMEOUT=60
+NOVA_AI_MAX_REQUEST_SIZE=10485760
+NOVA_AI_RATE_LIMIT_ENABLED=true
+```
+
+### Benutzerberechtigungen
+```bash
+# Zugriff beschränken
+NOVA_AI_REQUIRE_LOGIN=true
+NOVA_AI_ADMIN_ONLY=false
+NOVA_AI_ALLOWED_ROLES=["administrator", "editor"]
+```
+
+### Firewall-Regeln
+```bash
+# Ausgehende Verbindungen erlauben
+- api.openai.com (Port 443)
+- api.anthropic.com (Port 443)
+- ailinux.me (Port 443, 7860)
+```
+
+## Performance-Optimierung
+
+### Server-Konfiguration
+
+```apache
+# .htaccess
+<IfModule mod_rewrite.c>
+    # Cache für statische Assets
+    <FilesMatch "\.(css|js|png|jpg|jpeg|gif|svg)$">
+        ExpiresActive On
+        ExpiresDefault "access plus 1 month"
+    </FilesMatch>
+</IfModule>
+```
+
+### PHP-Optimierung
+```ini
+; php.ini Anpassungen
+memory_limit = 512M
+max_execution_time = 300
+upload_max_filesize = 32M
+post_max_size = 32M
+max_input_vars = 3000
+```
+
+### WordPress-Optimierung
+```php
+// wp-config.php
+define('WP_MEMORY_LIMIT', '512M');
+define('WP_MAX_MEMORY_LIMIT', '512M');
+
+// Caching aktivieren
+define('WP_CACHE', true);
+define('NOVA_AI_CACHE_ENABLED', true);
+```
+
+## Automatisierung & Cron-Jobs
+
+### WordPress Cron
+```php
+// Automatische Crawler-Ausführung ist bereits konfiguriert
+// Überprüfen Sie: WordPress Admin → Nova AI → Crawler
+```
+
+### System Cron (optional)
+```bash
+# crontab -e
+# Stündlicher Crawler-Lauf
+0 * * * * curl -s "https://yourdomain.com/wp-cron.php" > /dev/null
+
+# Tägliche Bereinigung
+0 2 * * * wget -q -O - "https://yourdomain.com/wp-admin/admin-ajax.php?action=nova_ai_cleanup" > /dev/null
+```
+
+## Fehlerbehandlung
+
+### Debug-Modus aktivieren
+```bash
+# .env
+NOVA_AI_DEBUG=true
+WP_DEBUG=true
+WP_DEBUG_LOG=true
+```
+
+### Log-Dateien überprüfen
+```bash
+# WordPress Logs
+tail -f /path/to/wordpress/wp-content/debug.log
+
+# Server Logs
+tail -f /var/log/apache2/error.log
+tail -f /var/log/nginx/error.log
+```
+
+### Häufige Probleme
+
+#### API-Verbindungsfehler
+```bash
+# Prüfen Sie die Netzwerkverbindung
+curl -I https://ailinux.me/api/v1
+
+# Prüfen Sie Firewall-Regeln
+# Prüfen Sie SSL-Zertifikate
+```
+
+#### Crawler-Probleme
+```bash
+# Prüfen Sie die robots.txt
+# Prüfen Sie User-Agent-Beschränkungen
+# Prüfen Sie Rate-Limits
+```
+
+#### Bildgenerierung-Fehler
+```bash
+# Prüfen Sie die Stable Diffusion API
+curl -I https://ailinux.me:7860
+
+# Prüfen Sie Speicherplatz
+df -h /path/to/wordpress/wp-content/uploads/
+```
+
+## Update-Verfahren
+
+### Automatische Updates
+```
+WordPress Admin → Dashboard → Updates
+```
+
+### Manuelle Updates
+```bash
+# Backup erstellen
+wp db export backup.sql
+tar -czf site-backup.tar.gz /path/to/wordpress/
+
+# Plugin aktualisieren
+wp plugin update nova-ai-brainpool
+```
+
+## Backup & Wiederherstellung
+
+### Vollständiges Backup
+```bash
+# Dateien
+tar -czf nova-ai-backup-$(date +%Y%m%d).tar.gz \
+  /path/to/wordpress/wp-content/plugins/nova-ai-brainpool/ \
+  /path/to/wordpress/wp-content/uploads/nova-ai-images/
+
+# Datenbank
+wp db export nova-ai-db-backup-$(date +%Y%m%d).sql --tables=wp_nova_ai_*
+```
+
+### Wiederherstellung
+```bash
+# Plugin-Dateien wiederherstellen
+tar -xzf nova-ai-backup-20241203.tar.gz -C /
+
+# Datenbank wiederherstellen
+wp db import nova-ai-db-backup-20241203.sql
+```
+
+## Support & Dokumentation
+
+### Offizielle Ressourcen
+- **Website**: https://ailinux.me
+- **Dokumentation**: https://ailinux.me/docs
+- **Community**: https://ailinux.me/community
+- **Support**: https://ailinux.me/support
+
+### Diagnose-Tools
+```
+WordPress Admin → Nova AI → Dashboard → System Info
+```
+
+### Log-Analyse
+```
+WordPress Admin → Nova AI → Settings → Debug → Download Logs
+```
+
+## Migration von anderen Plugins
+
+### Von anderen AI-Plugins
+```sql
+-- Beispiel-Migration (anpassen nach Bedarf)
+INSERT INTO wp_nova_ai_conversations (conversation_id, title, created_at)
+SELECT CONCAT('migrated_', id), title, created_at 
+FROM wp_other_plugin_conversations;
+```
+
+### Datenimport
+```
+WordPress Admin → Nova AI → Settings → Import/Export → Import Data
+```
+
+---
+
+## Nächste Schritte
+
+Nach erfolgreicher Installation:
+
+1. **Testen Sie alle Funktionen**
+   - Chat-Interface
+   - Bildgenerierung
+   - Crawler
+   - NovaNet (optional)
+
+2. **Optimieren Sie die Einstellungen**
+   - Anpassung der Prompts
+   - Crawler-Konfiguration
+   - Performance-Tuning
+
+3. **Integration in Ihre Website**
+   - Shortcodes hinzufügen
+   - Design anpassen
+   - Benutzerrechte konfigurieren
+
+4. **Überwachung einrichten**
+   - Dashboard regelmäßig überprüfen
+   - Log-Monitoring
+   - Performance-Überwachung
+
+Bei Fragen oder Problemen wenden Sie sich an den Support unter https://ailinux.me/support.

@@ -1,0 +1,721 @@
+/**
+ * Nova AI Chat Frontend Styles
+ * 
+ * Modern, responsive design for chat interface
+ */
+
+/* Base Variables */
+:root {
+    --nova-primary: #2563eb;
+    --nova-primary-dark: #1d4ed8;
+    --nova-secondary: #64748b;
+    --nova-success: #10b981;
+    --nova-warning: #f59e0b;
+    --nova-error: #ef4444;
+    --nova-bg: #ffffff;
+    --nova-bg-secondary: #f8fafc;
+    --nova-border: #e2e8f0;
+    --nova-text: #1e293b;
+    --nova-text-muted: #64748b;
+    --nova-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+    --nova-shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+    --nova-radius: 0.5rem;
+    --nova-radius-lg: 0.75rem;
+}
+
+/* Dark theme */
+[data-theme="dark"] {
+    --nova-bg: #0f172a;
+    --nova-bg-secondary: #1e293b;
+    --nova-border: #334155;
+    --nova-text: #f1f5f9;
+    --nova-text-muted: #94a3b8;
+}
+
+/* Chat Container */
+.nova-ai-chat-container {
+    max-width: 800px;
+    margin: 0 auto;
+    background: var(--nova-bg);
+    border: 1px solid var(--nova-border);
+    border-radius: var(--nova-radius-lg);
+    box-shadow: var(--nova-shadow-lg);
+    overflow: hidden;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    color: var(--nova-text);
+    position: relative;
+}
+
+/* Chat Header */
+.nova-ai-chat-header {
+    background: linear-gradient(135deg, var(--nova-primary), var(--nova-primary-dark));
+    color: white;
+    padding: 1rem 1.5rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid var(--nova-border);
+}
+
+.nova-ai-chat-header h3 {
+    margin: 0;
+    font-size: 1.25rem;
+    font-weight: 600;
+}
+
+.nova-ai-chat-controls {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.nova-ai-chat-controls button {
+    background: rgba(255, 255, 255, 0.2);
+    border: none;
+    border-radius: var(--nova-radius);
+    padding: 0.5rem;
+    color: white;
+    cursor: pointer;
+    transition: background-color 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.nova-ai-chat-controls button:hover {
+    background: rgba(255, 255, 255, 0.3);
+}
+
+.nova-ai-chat-controls .dashicons {
+    font-size: 16px;
+    width: 16px;
+    height: 16px;
+}
+
+/* Messages Container */
+.nova-ai-chat-messages {
+    height: 400px;
+    overflow-y: auto;
+    padding: 1rem;
+    background: var(--nova-bg-secondary);
+    scroll-behavior: smooth;
+}
+
+.nova-ai-chat-messages::-webkit-scrollbar {
+    width: 6px;
+}
+
+.nova-ai-chat-messages::-webkit-scrollbar-track {
+    background: var(--nova-bg-secondary);
+}
+
+.nova-ai-chat-messages::-webkit-scrollbar-thumb {
+    background: var(--nova-border);
+    border-radius: 3px;
+}
+
+.nova-ai-chat-messages::-webkit-scrollbar-thumb:hover {
+    background: var(--nova-secondary);
+}
+
+/* Messages */
+.nova-ai-message {
+    margin-bottom: 1.5rem;
+    opacity: 0;
+    animation: fadeInUp 0.3s ease-out forwards;
+}
+
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.nova-ai-message-header {
+    display: flex;
+    align-items: center;
+    margin-bottom: 0.5rem;
+    gap: 0.75rem;
+}
+
+.nova-ai-avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    flex-shrink: 0;
+}
+
+.nova-ai-user-avatar {
+    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+}
+
+.nova-ai-ai-avatar {
+    background: linear-gradient(135deg, var(--nova-primary), #06b6d4);
+}
+
+.nova-ai-error-avatar {
+    background: var(--nova-error);
+}
+
+.nova-ai-message-meta {
+    display: flex;
+    flex-direction: column;
+    gap: 0.125rem;
+}
+
+.nova-ai-username {
+    font-weight: 600;
+    font-size: 0.875rem;
+    color: var(--nova-text);
+}
+
+.nova-ai-timestamp {
+    font-size: 0.75rem;
+    color: var(--nova-text-muted);
+}
+
+/* Message Content */
+.nova-ai-message-content {
+    background: var(--nova-bg);
+    border: 1px solid var(--nova-border);
+    border-radius: var(--nova-radius);
+    padding: 1rem;
+    margin-left: 2.75rem;
+    position: relative;
+    line-height: 1.6;
+}
+
+.nova-ai-message-content::before {
+    content: '';
+    position: absolute;
+    left: -8px;
+    top: 12px;
+    width: 0;
+    height: 0;
+    border-style: solid;
+    border-width: 6px 8px 6px 0;
+    border-color: transparent var(--nova-border) transparent transparent;
+}
+
+.nova-ai-message-content::after {
+    content: '';
+    position: absolute;
+    left: -7px;
+    top: 12px;
+    width: 0;
+    height: 0;
+    border-style: solid;
+    border-width: 6px 8px 6px 0;
+    border-color: transparent var(--nova-bg) transparent transparent;
+}
+
+.nova-ai-user .nova-ai-message-content {
+    background: linear-gradient(135deg, var(--nova-primary), var(--nova-primary-dark));
+    color: white;
+    border-color: var(--nova-primary);
+}
+
+.nova-ai-user .nova-ai-message-content::after {
+    border-color: transparent var(--nova-primary) transparent transparent;
+}
+
+.nova-ai-error .nova-ai-message-content {
+    background: #fef2f2;
+    border-color: var(--nova-error);
+    color: #991b1b;
+}
+
+/* Context Indicator */
+.nova-ai-context-indicator {
+    background: rgba(16, 185, 129, 0.1);
+    color: var(--nova-success);
+    padding: 0.25rem 0.5rem;
+    border-radius: var(--nova-radius);
+    font-size: 0.75rem;
+    margin-top: 0.5rem;
+    display: inline-block;
+}
+
+/* Typing Indicator */
+.nova-ai-typing .nova-ai-message-content {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1rem;
+}
+
+.nova-ai-typing-dots {
+    display: flex;
+    gap: 0.25rem;
+}
+
+.nova-ai-typing-dots span {
+    width: 6px;
+    height: 6px;
+    background: var(--nova-primary);
+    border-radius: 50%;
+    animation: typingDot 1.4s infinite ease-in-out both;
+}
+
+.nova-ai-typing-dots span:nth-child(1) { animation-delay: -0.32s; }
+.nova-ai-typing-dots span:nth-child(2) { animation-delay: -0.16s; }
+
+@keyframes typingDot {
+    0%, 80%, 100% {
+        transform: scale(0.8);
+        opacity: 0.5;
+    }
+    40% {
+        transform: scale(1);
+        opacity: 1;
+    }
+}
+
+.nova-ai-typing-text {
+    color: var(--nova-text-muted);
+    font-style: italic;
+}
+
+/* Content Formatting */
+.nova-ai-message-content strong {
+    font-weight: 600;
+}
+
+.nova-ai-message-content em {
+    font-style: italic;
+}
+
+.nova-ai-message-content code {
+    background: rgba(0, 0, 0, 0.1);
+    padding: 0.125rem 0.25rem;
+    border-radius: 0.25rem;
+    font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace;
+    font-size: 0.875em;
+}
+
+.nova-ai-message-content pre {
+    background: #1e293b;
+    color: #f1f5f9;
+    padding: 1rem;
+    border-radius: var(--nova-radius);
+    overflow-x: auto;
+    margin: 0.5rem 0;
+}
+
+.nova-ai-message-content pre code {
+    background: none;
+    padding: 0;
+    color: inherit;
+}
+
+/* Panels */
+.nova-ai-crawler-panel,
+.nova-ai-image-panel {
+    background: var(--nova-bg-secondary);
+    border-top: 1px solid var(--nova-border);
+    padding: 1rem;
+    display: none;
+}
+
+.nova-ai-crawler-controls,
+.nova-ai-image-controls {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+    flex-wrap: wrap;
+}
+
+.nova-ai-crawl-url,
+.nova-ai-image-prompt {
+    flex: 1;
+    min-width: 200px;
+    padding: 0.75rem;
+    border: 1px solid var(--nova-border);
+    border-radius: var(--nova-radius);
+    background: var(--nova-bg);
+    color: var(--nova-text);
+    font-size: 0.875rem;
+}
+
+.nova-ai-image-prompt {
+    resize: vertical;
+    min-height: 80px;
+    font-family: inherit;
+}
+
+.nova-ai-image-settings {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.nova-ai-image-style,
+.nova-ai-image-size {
+    padding: 0.75rem;
+    border: 1px solid var(--nova-border);
+    border-radius: var(--nova-radius);
+    background: var(--nova-bg);
+    color: var(--nova-text);
+    font-size: 0.875rem;
+}
+
+/* Buttons */
+.nova-ai-crawl-btn,
+.nova-ai-generate-btn,
+.nova-ai-send-btn {
+    background: var(--nova-primary);
+    color: white;
+    border: none;
+    border-radius: var(--nova-radius);
+    padding: 0.75rem 1.5rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.875rem;
+    white-space: nowrap;
+}
+
+.nova-ai-crawl-btn:hover,
+.nova-ai-generate-btn:hover,
+.nova-ai-send-btn:hover {
+    background: var(--nova-primary-dark);
+    transform: translateY(-1px);
+    box-shadow: var(--nova-shadow);
+}
+
+.nova-ai-crawl-btn:disabled,
+.nova-ai-generate-btn:disabled,
+.nova-ai-send-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+}
+
+/* Status Messages */
+.nova-ai-crawl-status,
+.nova-ai-status {
+    padding: 0.75rem;
+    border-radius: var(--nova-radius);
+    margin-top: 0.5rem;
+    font-size: 0.875rem;
+    display: none;
+}
+
+.nova-ai-crawl-status.success,
+.nova-ai-status-success {
+    background: #ecfdf5;
+    color: #065f46;
+    border: 1px solid #a7f3d0;
+}
+
+.nova-ai-crawl-status.error,
+.nova-ai-status-error {
+    background: #fef2f2;
+    color: #991b1b;
+    border: 1px solid #fecaca;
+}
+
+.nova-ai-crawl-status.info,
+.nova-ai-status-info {
+    background: #eff6ff;
+    color: #1e40af;
+    border: 1px solid #bfdbfe;
+}
+
+/* Input Area */
+.nova-ai-chat-input {
+    background: var(--nova-bg);
+    border-top: 1px solid var(--nova-border);
+    padding: 1rem;
+    display: flex;
+    gap: 0.75rem;
+    align-items: end;
+}
+
+.nova-ai-message-input {
+    flex: 1;
+    border: 1px solid var(--nova-border);
+    border-radius: var(--nova-radius);
+    padding: 0.75rem;
+    font-family: inherit;
+    font-size: 0.875rem;
+    color: var(--nova-text);
+    background: var(--nova-bg);
+    resize: none;
+    min-height: 44px;
+    max-height: 120px;
+    transition: border-color 0.2s;
+}
+
+.nova-ai-message-input:focus {
+    outline: none;
+    border-color: var(--nova-primary);
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+.nova-ai-message-input::placeholder {
+    color: var(--nova-text-muted);
+}
+
+/* Image Generation Results */
+.nova-ai-image-result {
+    margin-top: 1rem;
+}
+
+.nova-ai-generated-image,
+.nova-ai-image-wrapper {
+    background: var(--nova-bg);
+    border: 1px solid var(--nova-border);
+    border-radius: var(--nova-radius);
+    padding: 1rem;
+    text-align: center;
+}
+
+.nova-ai-image-container {
+    position: relative;
+    display: inline-block;
+    margin-bottom: 1rem;
+}
+
+.nova-ai-generated-img {
+    max-width: 100%;
+    height: auto;
+    border-radius: var(--nova-radius);
+    box-shadow: var(--nova-shadow);
+    cursor: pointer;
+    transition: transform 0.2s;
+}
+
+.nova-ai-generated-img:hover {
+    transform: scale(1.02);
+}
+
+.nova-ai-image-overlay {
+    position: absolute;
+    top: 0.5rem;
+    right: 0.5rem;
+    display: flex;
+    gap: 0.25rem;
+    opacity: 0;
+    transition: opacity 0.2s;
+}
+
+.nova-ai-image-container:hover .nova-ai-image-overlay {
+    opacity: 1;
+}
+
+.nova-ai-image-action {
+    background: rgba(0, 0, 0, 0.7);
+    color: white;
+    border: none;
+    border-radius: 50%;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 14px;
+    transition: background-color 0.2s;
+}
+
+.nova-ai-image-action:hover {
+    background: rgba(0, 0, 0, 0.9);
+}
+
+.nova-ai-image-info,
+.nova-ai-image-meta {
+    text-align: left;
+}
+
+.nova-ai-image-prompt {
+    margin-bottom: 0.5rem;
+    color: var(--nova-text);
+}
+
+.nova-ai-image-details {
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+    color: var(--nova-text-muted);
+    font-size: 0.875rem;
+}
+
+.nova-ai-download-btn {
+    background: var(--nova-success);
+    color: white;
+    border: none;
+    border-radius: var(--nova-radius);
+    padding: 0.5rem 1rem;
+    cursor: pointer;
+    font-size: 0.875rem;
+    margin-top: 0.5rem;
+    transition: background-color 0.2s;
+}
+
+.nova-ai-download-btn:hover {
+    background: #059669;
+}
+
+/* Image Generator Standalone */
+.nova-ai-image-generator {
+    max-width: 600px;
+    margin: 0 auto;
+    background: var(--nova-bg);
+    border: 1px solid var(--nova-border);
+    border-radius: var(--nova-radius-lg);
+    padding: 1.5rem;
+    box-shadow: var(--nova-shadow);
+}
+
+.nova-ai-image-generator .nova-ai-image-controls {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.nova-ai-image-generator .nova-ai-image-prompt {
+    width: 100%;
+    min-height: 80px;
+}
+
+.nova-ai-image-generator .nova-ai-image-settings {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+}
+
+.nova-ai-image-generator .nova-ai-generate-btn {
+    align-self: flex-start;
+    padding: 1rem 2rem;
+    font-size: 1rem;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .nova-ai-chat-container {
+        margin: 0;
+        border-radius: 0;
+        height: 100vh;
+        display: flex;
+        flex-direction: column;
+    }
+    
+    .nova-ai-chat-messages {
+        flex: 1;
+        height: auto;
+    }
+    
+    .nova-ai-crawler-controls,
+    .nova-ai-image-controls {
+        flex-direction: column;
+    }
+    
+    .nova-ai-crawl-url,
+    .nova-ai-image-prompt {
+        min-width: auto;
+    }
+    
+    .nova-ai-image-settings {
+        grid-template-columns: 1fr;
+    }
+    
+    .nova-ai-image-details {
+        flex-direction: column;
+        gap: 0.25rem;
+    }
+    
+    .nova-ai-chat-input {
+        padding: 0.75rem;
+    }
+    
+    .nova-ai-message-content {
+        margin-left: 2.5rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .nova-ai-chat-header {
+        padding: 0.75rem 1rem;
+    }
+    
+    .nova-ai-chat-header h3 {
+        font-size: 1.125rem;
+    }
+    
+    .nova-ai-message-content {
+        margin-left: 2rem;
+        padding: 0.75rem;
+    }
+    
+    .nova-ai-chat-input {
+        gap: 0.5rem;
+    }
+    
+    .nova-ai-send-btn {
+        padding: 0.75rem 1rem;
+    }
+}
+
+/* High contrast mode */
+@media (prefers-contrast: high) {
+    :root {
+        --nova-border: #000000;
+        --nova-bg-secondary: #ffffff;
+    }
+    
+    [data-theme="dark"] {
+        --nova-border: #ffffff;
+        --nova-bg-secondary: #000000;
+    }
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+    * {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+}
+
+/* Print styles */
+@media print {
+    .nova-ai-chat-container {
+        box-shadow: none;
+        border: 1px solid #000;
+    }
+    
+    .nova-ai-chat-header,
+    .nova-ai-crawler-panel,
+    .nova-ai-image-panel,
+    .nova-ai-chat-input {
+        display: none !important;
+    }
+    
+    .nova-ai-chat-messages {
+        height: auto !important;
+        overflow: visible !important;
+    }
+    
+    .nova-ai-message {
+        break-inside: avoid;
+        margin-bottom: 1rem;
+    }
+    
+    .nova-ai-generated-img {
+        max-width: 300px !important;
+    }
+}
