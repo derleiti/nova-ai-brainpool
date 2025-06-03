@@ -1,0 +1,42 @@
+# Nova AI Brainpool - Git Ignores
+
+# Konfigurationsdateien
+.env
+.env.local
+.env.production
+
+# WordPress spezifisch
+wp-config.php
+.htaccess
+
+# Logs und temporäre Dateien
+*.log
+debug.log
+error_log
+crawler-urls.txt
+knowledge-base.json
+
+# Betriebssystem
+.DS_Store
+Thumbs.db
+
+# Editor/IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Node.js (falls später verwendet)
+node_modules/
+npm-debug.log
+yarn-error.log
+
+# Backup-Dateien
+*.bak
+*.backup
+*.sql
+
+# Composer (falls später verwendet)
+/vendor/
+composer.lock
