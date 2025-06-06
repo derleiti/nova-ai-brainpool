@@ -1,471 +1,252 @@
 <?php
 /**
- * Nova AI Providers Class
- * 
- * Manages different AI providers and API configurations
+ * Nova AI Brainpool - Provider Management
+ * Verwaltung verschiedener KI-APIs (Ollama, OpenAI, etc.)
  */
 
+// Verhindere direkten Zugriff
 if (!defined('ABSPATH')) {
     exit;
 }
 
-class Nova_AI_Providers {
+require_once(NOVA_AI_PLUGIN_PATH . 'includes/class-nova-ai-core.php');
+
+class NovaAIProviders extends NovaAICore {
     
     private $providers;
     private $active_provider;
     
-    /**
-     * Constructor
-     */
     public function __construct() {
-        $this->init_providers();
-        $this->active_provider = get_option('nova_ai_active_provider', 'ailinux');
+        parent::__construct();
+        $this->load_providers();
     }
     
     /**
-     * Initialize available providers
+     * Provider-Konfigurationen laden
      */
-    private function init_providers() {
-        $this->providers = array(
-            'ailinux' => array(
-                'name' => 'AI Linux',
-                'description' => 'Custom AI Linux API endpoint',
-                'api_url' => 'https://ailinux.me/api/v1',
-                'models' => array(
-                    'gpt-4' => 'GPT-4',
-                    'gpt-3.5-turbo' => 'GPT-3.5 Turbo',
-                    'claude-3' => 'Claude 3',
-                    'llama-2' => 'Llama 2'
-                ),
-                'supports_streaming' => true,
-                'supports_functions' => true,
-                'requires_api_key' => true
-            ),
-            'openai' => array(
+    private function load_providers() {
+        $this->providers = get_option('nova_ai_providers', $this->get_default_providers());
+        $this->active_provider = get_option('nova_ai_active_provider', 'ollama');
+    }
+    
+    /**
+     * Standard-Provider
+     */
+    private function get_default_providers() {
+        return [
+            'ollama' => [
+                'name' => 'Ollama (Lokal)',
+                'endpoint' => 'http://127.0.0.1:11434/api/chat',
+                'models' => ['zephyr', 'mistral', 'llama2', 'codellama'],
+                'default_model' => 'zephyr',
+                'type' => 'ollama'
+            ],
+            'openai' => [
                 'name' => 'OpenAI',
-                'description' => 'Official OpenAI API',
-                'api_url' => 'https://api.openai.com/v1',
-                'models' => array(
-                    'gpt-4' => 'GPT-4',
-                    'gpt-4-turbo' => 'GPT-4 Turbo',
-                    'gpt-3.5-turbo' => 'GPT-3.5 Turbo'
-                ),
-                'supports_streaming' => true,
-                'supports_functions' => true,
-                'requires_api_key' => true
-            ),
-            'anthropic' => array(
-                'name' => 'Anthropic',
-                'description' => 'Anthropic Claude API',
-                'api_url' => 'https://api.anthropic.com/v1',
-                'models' => array(
-                    'claude-3-opus' => 'Claude 3 Opus',
-                    'claude-3-sonnet' => 'Claude 3 Sonnet',
-                    'claude-3-haiku' => 'Claude 3 Haiku'
-                ),
-                'supports_streaming' => true,
-                'supports_functions' => false,
-                'requires_api_key' => true
-            ),
-            'local' => array(
-                'name' => 'Local LLM',
-                'description' => 'Local language model (Ollama/LM Studio)',
-                'api_url' => 'http://localhost:11434/v1',
-                'models' => array(
-                    'llama2' => 'Llama 2',
-                    'mistral' => 'Mistral',
-                    'codellama' => 'Code Llama',
-                    'neural-chat' => 'Neural Chat'
-                ),
-                'supports_streaming' => true,
-                'supports_functions' => false,
-                'requires_api_key' => false
-            )
-        );
-        
-        // Allow custom providers via filter
-        $this->providers = apply_filters('nova_ai_providers', $this->providers);
+                'endpoint' => 'https://api.openai.com/v1/chat/completions',
+                'models' => ['gpt-4', 'gpt-3.5-turbo', 'gpt-4-turbo'],
+                'default_model' => 'gpt-3.5-turbo',
+                'type' => 'openai',
+                'api_key' => ''
+            ]
+        ];
     }
     
     /**
-     * Get all available providers
+     * Verfügbare Provider abrufen
      */
-    public function get_providers() {
+    public function get_available_providers() {
         return $this->providers;
     }
     
     /**
-     * Get active provider
+     * Aktiven Provider abrufen
      */
     public function get_active_provider() {
-        return $this->providers[$this->active_provider] ?? null;
+        return $this->active_provider;
     }
     
     /**
-     * Get provider by name
+     * KI-Anfrage senden
      */
-    public function get_provider($name) {
-        return $this->providers[$name] ?? null;
-    }
-    
-    /**
-     * Set active provider
-     */
-    public function set_active_provider($provider_name) {
-        if (isset($this->providers[$provider_name])) {
-            $this->active_provider = $provider_name;
-            update_option('nova_ai_active_provider', $provider_name);
-            return true;
-        }
-        return false;
-    }
-    
-    /**
-     * Get models for provider
-     */
-    public function get_provider_models($provider_name = null) {
-        if (!$provider_name) {
-            $provider_name = $this->active_provider;
+    public function send_request($provider_key = '', $model = '', $prompt = '') {
+        if (empty($provider_key)) {
+            $provider_key = $this->active_provider;
         }
         
-        $provider = $this->get_provider($provider_name);
-        return $provider ? $provider['models'] : array();
-    }
-    
-    /**
-     * Get API URL for provider
-     */
-    public function get_api_url($provider_name = null) {
-        if (!$provider_name) {
-            $provider_name = $this->active_provider;
-        }
-        
-        $provider = $this->get_provider($provider_name);
-        return $provider ? $provider['api_url'] : '';
-    }
-    
-    /**
-     * Check if provider supports feature
-     */
-    public function provider_supports($feature, $provider_name = null) {
-        if (!$provider_name) {
-            $provider_name = $this->active_provider;
-        }
-        
-        $provider = $this->get_provider($provider_name);
-        return $provider ? ($provider["supports_{$feature}"] ?? false) : false;
-    }
-    
-    /**
-     * Make API call using active provider
-     */
-    public function make_api_call($endpoint, $data, $provider_name = null) {
-        if (!$provider_name) {
-            $provider_name = $this->active_provider;
-        }
-        
-        $provider = $this->get_provider($provider_name);
+        $provider = $this->providers[$provider_key] ?? null;
         if (!$provider) {
-            throw new Exception('Invalid provider');
-        }
-        
-        $api_url = rtrim($provider['api_url'], '/') . '/' . ltrim($endpoint, '/');
-        
-        // Prepare headers
-        $headers = array(
-            'Content-Type' => 'application/json'
-        );
-        
-        // Add API key if required
-        if ($provider['requires_api_key']) {
-            $api_key = $this->get_provider_api_key($provider_name);
-            if (empty($api_key)) {
-                throw new Exception('API key required for ' . $provider['name']);
-            }
-            
-            // Different providers use different auth headers
-            switch ($provider_name) {
-                case 'anthropic':
-                    $headers['x-api-key'] = $api_key;
-                    $headers['anthropic-version'] = '2023-06-01';
-                    break;
-                default:
-                    $headers['Authorization'] = 'Bearer ' . $api_key;
-                    break;
-            }
-        }
-        
-        $args = array(
-            'method' => 'POST',
-            'headers' => $headers,
-            'body' => json_encode($data),
-            'timeout' => 60
-        );
-        
-        $response = wp_remote_request($api_url, $args);
-        
-        if (is_wp_error($response)) {
-            throw new Exception('API request failed: ' . $response->get_error_message());
-        }
-        
-        $response_code = wp_remote_retrieve_response_code($response);
-        $response_body = wp_remote_retrieve_body($response);
-        
-        if ($response_code !== 200) {
-            throw new Exception("API returned error: {$response_code}");
-        }
-        
-        $decoded_response = json_decode($response_body, true);
-        
-        if (json_last_error() !== JSON_ERROR_NONE) {
-            throw new Exception('Invalid JSON response');
-        }
-        
-        return $decoded_response;
-    }
-    
-    /**
-     * Get API key for provider
-     */
-    private function get_provider_api_key($provider_name) {
-        return get_option("nova_ai_{$provider_name}_api_key", '');
-    }
-    
-    /**
-     * Test provider connection
-     */
-    public function test_provider_connection($provider_name) {
-        try {
-            $provider = $this->get_provider($provider_name);
-            if (!$provider) {
-                return array(
-                    'success' => false,
-                    'message' => 'Provider not found'
-                );
-            }
-            
-            // Simple test message
-            $test_data = array(
-                'model' => array_keys($provider['models'])[0] ?? 'gpt-3.5-turbo',
-                'messages' => array(
-                    array(
-                        'role' => 'user',
-                        'content' => 'Hello, can you respond with "Connection test successful"?'
-                    )
-                ),
-                'max_tokens' => 50
-            );
-            
-            // Adapt data format for different providers
-            $test_data = $this->adapt_data_for_provider($test_data, $provider_name);
-            
-            $response = $this->make_api_call('chat/completions', $test_data, $provider_name);
-            
-            // Check response format
-            if ($this->validate_response($response, $provider_name)) {
-                return array(
-                    'success' => true,
-                    'message' => 'Connection successful',
-                    'provider' => $provider['name']
-                );
-            } else {
-                return array(
-                    'success' => false,
-                    'message' => 'Invalid response format'
-                );
-            }
-            
-        } catch (Exception $e) {
-            return array(
+            return [
                 'success' => false,
-                'message' => $e->getMessage()
-            );
-        }
-    }
-    
-    /**
-     * Adapt data format for specific providers
-     */
-    private function adapt_data_for_provider($data, $provider_name) {
-        switch ($provider_name) {
-            case 'anthropic':
-                // Anthropic uses different format
-                return array(
-                    'model' => $data['model'],
-                    'max_tokens' => $data['max_tokens'],
-                    'messages' => $data['messages']
-                );
-                
-            case 'local':
-                // Local models might need different parameters
-                unset($data['max_tokens']);
-                $data['max_new_tokens'] = 50;
-                break;
+                'error' => "Provider '{$provider_key}' nicht gefunden"
+            ];
         }
         
-        return $data;
-    }
-    
-    /**
-     * Validate API response
-     */
-    private function validate_response($response, $provider_name) {
-        switch ($provider_name) {
-            case 'anthropic':
-                return isset($response['content']) && is_array($response['content']);
-                
+        if (empty($model)) {
+            $model = $provider['default_model'];
+        }
+        
+        $this->log("Sending request to {$provider_key}/{$model}: " . substr($prompt, 0, 50) . '...');
+        
+        switch ($provider['type']) {
+            case 'ollama':
+                return $this->send_ollama_request($provider, $model, $prompt);
+            case 'openai':
+                return $this->send_openai_request($provider, $model, $prompt);
             default:
-                return isset($response['choices']) && is_array($response['choices']);
+                return $this->send_custom_request($provider, $model, $prompt);
         }
     }
     
     /**
-     * Format response for consistency
+     * Ollama-Request
      */
-    public function format_response($response, $provider_name) {
-        switch ($provider_name) {
-            case 'anthropic':
-                if (isset($response['content'][0]['text'])) {
-                    return array(
-                        'choices' => array(
-                            array(
-                                'message' => array(
-                                    'content' => $response['content'][0]['text']
-                                )
-                            )
-                        )
-                    );
-                }
-                break;
-                
-            default:
-                return $response;
-        }
-        
-        return $response;
-    }
-    
-    /**
-     * Get provider usage stats
-     */
-    public function get_provider_usage_stats($provider_name, $days = 30) {
-        global $wpdb;
-        
-        $table = $wpdb->prefix . 'nova_ai_messages';
-        $start_date = date('Y-m-d H:i:s', strtotime("-{$days} days"));
-        
-        // This would require adding provider tracking to messages table
-        // For now, return basic stats
-        $total_messages = $wpdb->get_var($wpdb->prepare(
-            "SELECT COUNT(*) FROM $table WHERE created_at >= %s",
-            $start_date
-        ));
-        
-        return array(
-            'provider' => $provider_name,
-            'total_messages' => intval($total_messages),
-            'period_days' => $days
+    private function send_ollama_request($provider, $model, $prompt) {
+        $system_prompt = get_option('nova_ai_system_prompt', 
+            'Du bist Nova, die KI-Admin für das AILinux-Projekt.'
         );
+        
+        $data = [
+            'model' => $model,
+            'messages' => [
+                [
+                    'role' => 'system',
+                    'content' => $system_prompt
+                ],
+                [
+                    'role' => 'user',
+                    'content' => $prompt
+                ]
+            ],
+            'stream' => false
+        ];
+        
+        $response = $this->http_request($provider['endpoint'], [
+            'method' => 'POST',
+            'headers' => [
+                'Content-Type' => 'application/json'
+            ],
+            'body' => json_encode($data)
+        ]);
+        
+        if (!$response['success']) {
+            return $response;
+        }
+        
+        $json_response = $this->parse_json_response($response);
+        if (!$json_response['success']) {
+            return $json_response;
+        }
+        
+        $data = $json_response['data'];
+        
+        if (!isset($data['message']['content'])) {
+            return [
+                'success' => false,
+                'error' => 'Invalid Ollama response format'
+            ];
+        }
+        
+        return [
+            'success' => true,
+            'message' => $data['message']['content'],
+            'model' => $model,
+            'provider' => 'ollama',
+            'tokens_used' => $data['eval_count'] ?? 0
+        ];
     }
     
     /**
-     * Get recommended provider based on usage
+     * OpenAI-Request
      */
-    public function get_recommended_provider() {
-        // Simple logic - can be enhanced
-        $providers = $this->get_providers();
-        
-        // Prefer AI Linux as default
-        if (isset($providers['ailinux'])) {
-            return 'ailinux';
+    private function send_openai_request($provider, $model, $prompt) {
+        $api_key = $provider['api_key'] ?? '';
+        if (empty($api_key)) {
+            return [
+                'success' => false,
+                'error' => 'OpenAI API Key fehlt'
+            ];
         }
         
-        // Fallback to first available
-        return array_keys($providers)[0] ?? null;
+        $system_prompt = get_option('nova_ai_system_prompt', 
+            'Du bist Nova, die KI-Admin für das AILinux-Projekt.'
+        );
+        
+        $data = [
+            'model' => $model,
+            'messages' => [
+                [
+                    'role' => 'system',
+                    'content' => $system_prompt
+                ],
+                [
+                    'role' => 'user',
+                    'content' => $prompt
+                ]
+            ],
+            'max_tokens' => 500,
+            'temperature' => 0.7
+        ];
+        
+        $response = $this->http_request($provider['endpoint'], [
+            'method' => 'POST',
+            'headers' => [
+                'Content-Type' => 'application/json',
+                'Authorization' => 'Bearer ' . $api_key
+            ],
+            'body' => json_encode($data)
+        ]);
+        
+        if (!$response['success']) {
+            return $response;
+        }
+        
+        $json_response = $this->parse_json_response($response);
+        if (!$json_response['success']) {
+            return $json_response;
+        }
+        
+        $data = $json_response['data'];
+        
+        if (!isset($data['choices'][0]['message']['content'])) {
+            return [
+                'success' => false,
+                'error' => 'Invalid OpenAI response format'
+            ];
+        }
+        
+        return [
+            'success' => true,
+            'message' => $data['choices'][0]['message']['content'],
+            'model' => $model,
+            'provider' => 'openai',
+            'tokens_used' => $data['usage']['total_tokens'] ?? 0
+        ];
     }
     
     /**
-     * Check provider health
+     * Custom API Request
      */
-    public function check_provider_health($provider_name = null) {
-        if (!$provider_name) {
-            $provider_name = $this->active_provider;
-        }
-        
-        $provider = $this->get_provider($provider_name);
+    private function send_custom_request($provider, $model, $prompt) {
+        // Implementierung für Custom APIs
+        return [
+            'success' => false,
+            'error' => 'Custom API not implemented yet'
+        ];
+    }
+    
+    /**
+     * Provider-Verbindung testen
+     */
+    public function test_connection($provider_key) {
+        $provider = $this->providers[$provider_key] ?? null;
         if (!$provider) {
-            return array(
-                'status' => 'error',
-                'message' => 'Provider not found'
-            );
-        }
-        
-        // Test basic connectivity
-        $test_result = $this->test_provider_connection($provider_name);
-        
-        if ($test_result['success']) {
-            return array(
-                'status' => 'healthy',
-                'message' => 'Provider is responding normally',
-                'provider' => $provider['name']
-            );
-        } else {
-            return array(
-                'status' => 'unhealthy',
-                'message' => $test_result['message'],
-                'provider' => $provider['name']
-            );
-        }
-    }
-    
-    /**
-     * Get provider pricing info (if available)
-     */
-    public function get_provider_pricing($provider_name) {
-        $pricing = array(
-            'openai' => array(
-                'gpt-4' => array('input' => 0.03, 'output' => 0.06, 'unit' => '1K tokens'),
-                'gpt-3.5-turbo' => array('input' => 0.001, 'output' => 0.002, 'unit' => '1K tokens')
-            ),
-            'anthropic' => array(
-                'claude-3-opus' => array('input' => 0.015, 'output' => 0.075, 'unit' => '1K tokens'),
-                'claude-3-sonnet' => array('input' => 0.003, 'output' => 0.015, 'unit' => '1K tokens')
-            ),
-            'local' => array(
-                'all_models' => array('input' => 0, 'output' => 0, 'unit' => 'Free')
-            ),
-            'ailinux' => array(
-                'all_models' => array('input' => 'Custom', 'output' => 'Custom', 'unit' => 'Contact provider')
-            )
-        );
-        
-        return $pricing[$provider_name] ?? array();
-    }
-    
-    /**
-     * Switch provider automatically on failure
-     */
-    public function auto_switch_provider() {
-        $providers = array_keys($this->providers);
-        $current_index = array_search($this->active_provider, $providers);
-        
-        if ($current_index === false) {
             return false;
         }
         
-        // Try next provider
-        $next_index = ($current_index + 1) % count($providers);
-        $next_provider = $providers[$next_index];
-        
-        // Test connection
-        $test_result = $this->test_provider_connection($next_provider);
-        
-        if ($test_result['success']) {
-            $this->set_active_provider($next_provider);
-            nova_ai_log("Switched to provider: {$next_provider}", 'info');
-            return $next_provider;
-        }
-        
-        return false;
+        // Einfacher Test mit kurzem Prompt
+        $result = $this->send_request($provider_key, '', 'Test');
+        return $result['success'];
     }
 }
+?>

@@ -1,768 +1,395 @@
 /**
- * Nova AI Extended JavaScript
- * 
- * Advanced functionality for admin interface and extended features
+ * Nova AI Brainpool - Extended JavaScript
+ * Multi-Provider, Stable Diffusion, NovaNet Frontend
  */
+
+// Nova AI Namespace
+window.NovaAI = window.NovaAI || {};
 
 (function($) {
     'use strict';
-
-    // Global Nova AI Admin object
-    window.NovaAIAdmin = {
-        init: function() {
-            this.initTabs();
-            this.initForms();
-            this.initModals();
-            this.initCharts();
-            this.initRealTimeUpdates();
-            this.initKeyboardShortcuts();
-        },
-
-        // Tab functionality
-        initTabs: function() {
-            $('.nova-ai-tab-button').on('click', function(e) {
-                e.preventDefault();
-                
-                const $this = $(this);
-                const tabId = $this.data('tab');
-                const $container = $this.closest('.nova-ai-tabs');
-                
-                // Update buttons
-                $container.find('.nova-ai-tab-button').removeClass('active');
-                $this.addClass('active');
-                
-                // Update panels
-                $container.find('.nova-ai-tab-panel').removeClass('active');
-                $container.find(`#${tabId}`).addClass('active');
-            });
-        },
-
-        // Form handling
-        initForms: function() {
-            // Auto-save forms
-            $('.nova-ai-form[data-autosave]').each(function() {
-                const $form = $(this);
-                const autosaveInterval = $form.data('autosave') || 30000; // 30 seconds default
-                
-                setInterval(() => {
-                    NovaAIAdmin.autoSaveForm($form);
-                }, autosaveInterval);
-            });
-
-            // Form validation
-            $('.nova-ai-form').on('submit', function(e) {
-                const $form = $(this);
-                if (!NovaAIAdmin.validateForm($form)) {
+    
+    // Globale Konfiguration
+    NovaAI.config = window.nova_ai_config || {};
+    NovaAI.activeChats = {};
+    
+    console.log('Nova AI Extended: Initializing with config', NovaAI.config);
+    
+    /**
+     * Chat-Instanz initialisieren
+     */
+    NovaAI.initializeChat = function(chatId, options) {
+        console.log('Nova AI: Initializing chat', chatId, options);
+        
+        const chat = {
+            id: chatId,
+            options: options,
+            elements: {
+                container: document.getElementById(chatId + '-container'),
+                messages: document.getElementById(chatId + '-messages'),
+                input: document.getElementById(chatId + '-input'),
+                providerSelect: document.getElementById(chatId + '-provider'),
+                modelSelect: document.getElementById(chatId + '-model'),
+                imageMode: document.getElementById(chatId + '-image-mode'),
+                status: document.getElementById(chatId + '-status')
+            },
+            currentProvider: options.activeProvider,
+            currentModel: '',
+            imageMode: false,
+            isProcessing: false
+        };
+        
+        // Elemente validieren
+        if (!chat.elements.container || !chat.elements.messages || !chat.elements.input) {
+            console.error('Nova AI: Required elements not found for chat', chatId);
+            return;
+        }
+        
+        // Event-Listener registrieren
+        this.setupChatEvents(chat);
+        
+        // Provider/Model-Listen aktualisieren
+        this.updateProviderModels(chat);
+        
+        // Chat in globaler Liste speichern
+        NovaAI.activeChats[chatId] = chat;
+        
+        // Initial fokussieren
+        chat.elements.input.focus();
+        
+        console.log('Nova AI: Chat initialized successfully', chatId);
+    };
+    
+    /**
+     * Event-Listener für Chat einrichten
+     */
+    NovaAI.setupChatEvents = function(chat) {
+        const elements = chat.elements;
+        
+        // Input-Events
+        if (elements.input) {
+            // Enter-Taste
+            elements.input.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter' && !e.shiftKey) {
                     e.preventDefault();
+                    NovaAI.sendMessage(chat.id);
                     return false;
                 }
+                
+                // Auto-resize
+                this.style.height = 'auto';
+                this.style.height = Math.min(this.scrollHeight, 200) + 'px';
             });
-
-            // Real-time validation
-            $('.nova-ai-form-input, .nova-ai-form-textarea').on('blur', function() {
-                NovaAIAdmin.validateField($(this));
+        }
+        
+        // Provider-Wechsel
+        if (elements.providerSelect) {
+            elements.providerSelect.addEventListener('change', function() {
+                chat.currentProvider = this.value;
+                NovaAI.updateProviderModels(chat);
+                NovaAI.updateStatus(chat, `Gewechselt zu ${this.options[this.selectedIndex].text}`);
             });
-
-            // API connection test
-            $('.nova-ai-test-connection').on('click', function(e) {
-                e.preventDefault();
-                NovaAIAdmin.testApiConnection($(this));
+        }
+        
+        // Model-Wechsel
+        if (elements.modelSelect) {
+            elements.modelSelect.addEventListener('change', function() {
+                chat.currentModel = this.value;
+                NovaAI.updateStatus(chat, `Modell: ${this.value}`);
             });
-
-            // Import/Export functionality
-            $('.nova-ai-export-settings').on('click', function(e) {
-                e.preventDefault();
-                NovaAIAdmin.exportSettings();
-            });
-
-            $('.nova-ai-import-settings').on('click', function(e) {
-                e.preventDefault();
-                NovaAIAdmin.importSettings();
-            });
-        },
-
-        // Auto-save form data
-        autoSaveForm: function($form) {
-            const formData = $form.serialize();
-            const formId = $form.attr('id') || 'nova-ai-form';
-            
-            $.ajax({
-                url: nova_ai_admin_ajax.ajax_url,
-                method: 'POST',
-                data: {
-                    action: 'nova_ai_autosave',
-                    nonce: nova_ai_admin_ajax.nonce,
-                    form_id: formId,
-                    form_data: formData
-                },
-                success: function(response) {
-                    if (response.success) {
-                        NovaAIAdmin.showNotification('Settings auto-saved', 'success');
-                    }
+        }
+        
+        // Bildmodus-Toggle
+        if (elements.imageMode) {
+            elements.imageMode.addEventListener('change', function() {
+                chat.imageMode = this.checked;
+                const mode = this.checked ? '🎨 Bildmodus' : '💬 Textmodus';
+                NovaAI.updateStatus(chat, mode);
+                
+                // Placeholder anpassen
+                if (elements.input) {
+                    const placeholder = this.checked ? 
+                        'Beschreibe das Bild das du generieren möchtest...' :
+                        'Deine Nachricht an Nova...';
+                    elements.input.placeholder = placeholder;
                 }
             });
-        },
-
-        // Form validation
-        validateForm: function($form) {
-            let isValid = true;
-            
-            $form.find('[required]').each(function() {
-                if (!NovaAIAdmin.validateField($(this))) {
-                    isValid = false;
-                }
-            });
-            
-            return isValid;
-        },
-
-        // Field validation
-        validateField: function($field) {
-            const value = $field.val();
-            const fieldType = $field.attr('type') || $field.prop('tagName').toLowerCase();
-            const isRequired = $field.attr('required');
-            let isValid = true;
-            let errorMessage = '';
-
-            // Clear previous errors
-            $field.removeClass('error');
-            $field.siblings('.nova-ai-form-error').remove();
-
-            // Required field check
-            if (isRequired && !value.trim()) {
-                isValid = false;
-                errorMessage = 'This field is required';
-            }
-
-            // Type-specific validation
-            if (value && isValid) {
-                switch (fieldType) {
-                    case 'email':
-                        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-                        if (!emailRegex.test(value)) {
-                            isValid = false;
-                            errorMessage = 'Please enter a valid email address';
-                        }
-                        break;
-                    
-                    case 'url':
-                        try {
-                            new URL(value);
-                        } catch {
-                            isValid = false;
-                            errorMessage = 'Please enter a valid URL';
-                        }
-                        break;
-                    
-                    case 'number':
-                        if (isNaN(value)) {
-                            isValid = false;
-                            errorMessage = 'Please enter a valid number';
-                        }
-                        break;
-                }
-            }
-
-            // Custom validation patterns
-            const pattern = $field.attr('pattern');
-            if (value && pattern && isValid) {
-                const regex = new RegExp(pattern);
-                if (!regex.test(value)) {
-                    isValid = false;
-                    errorMessage = $field.attr('title') || 'Invalid format';
-                }
-            }
-
-            // Show error if invalid
-            if (!isValid) {
-                $field.addClass('error');
-                $field.after(`<div class="nova-ai-form-error">${errorMessage}</div>`);
-            }
-
-            return isValid;
-        },
-
-        // Test API connection
-        testApiConnection: function($button) {
-            const $form = $button.closest('form');
-            const apiUrl = $form.find('[name="nova_ai_api_url"]').val();
-            const apiKey = $form.find('[name="nova_ai_api_key"]').val();
-            
-            if (!apiUrl) {
-                NovaAIAdmin.showNotification('Please enter an API URL first', 'error');
-                return;
-            }
-
-            $button.prop('disabled', true).text('Testing...');
-
-            $.ajax({
-                url: nova_ai_admin_ajax.ajax_url,
-                method: 'POST',
-                data: {
-                    action: 'nova_ai_test_connection',
-                    nonce: nova_ai_admin_ajax.nonce,
-                    api_url: apiUrl,
-                    api_key: apiKey
-                },
-                timeout: 30000,
-                success: function(response) {
-                    if (response.success) {
-                        NovaAIAdmin.showNotification('Connection successful!', 'success');
-                    } else {
-                        NovaAIAdmin.showNotification('Connection failed: ' + response.data.message, 'error');
-                    }
-                },
-                error: function() {
-                    NovaAIAdmin.showNotification('Connection test failed', 'error');
-                },
-                complete: function() {
-                    $button.prop('disabled', false).text('Test Connection');
-                }
-            });
-        },
-
-        // Export settings
-        exportSettings: function() {
-            $.ajax({
-                url: nova_ai_admin_ajax.ajax_url,
-                method: 'POST',
-                data: {
-                    action: 'nova_ai_export_settings',
-                    nonce: nova_ai_admin_ajax.nonce
-                },
-                success: function(response) {
-                    if (response.success) {
-                        const blob = new Blob([JSON.stringify(response.data, null, 2)], {
-                            type: 'application/json'
-                        });
-                        const url = URL.createObjectURL(blob);
-                        const a = document.createElement('a');
-                        a.href = url;
-                        a.download = `nova-ai-settings-${new Date().toISOString().split('T')[0]}.json`;
-                        document.body.appendChild(a);
-                        a.click();
-                        document.body.removeChild(a);
-                        URL.revokeObjectURL(url);
-                        
-                        NovaAIAdmin.showNotification('Settings exported successfully', 'success');
-                    } else {
-                        NovaAIAdmin.showNotification('Export failed', 'error');
-                    }
-                }
-            });
-        },
-
-        // Import settings
-        importSettings: function() {
-            const input = document.createElement('input');
-            input.type = 'file';
-            input.accept = '.json';
-            input.onchange = function(e) {
-                const file = e.target.files[0];
-                if (!file) return;
-
-                const reader = new FileReader();
-                reader.onload = function(e) {
-                    try {
-                        const settings = JSON.parse(e.target.result);
-                        NovaAIAdmin.processImportedSettings(settings);
-                    } catch (error) {
-                        NovaAIAdmin.showNotification('Invalid file format', 'error');
-                    }
-                };
-                reader.readAsText(file);
-            };
-            input.click();
-        },
-
-        // Process imported settings
-        processImportedSettings: function(settings) {
-            $.ajax({
-                url: nova_ai_admin_ajax.ajax_url,
-                method: 'POST',
-                data: {
-                    action: 'nova_ai_import_settings',
-                    nonce: nova_ai_admin_ajax.nonce,
-                    settings: JSON.stringify(settings)
-                },
-                success: function(response) {
-                    if (response.success) {
-                        NovaAIAdmin.showNotification('Settings imported successfully', 'success');
-                        setTimeout(() => location.reload(), 1500);
-                    } else {
-                        NovaAIAdmin.showNotification('Import failed: ' + response.data.message, 'error');
-                    }
-                }
-            });
-        },
-
-        // Modal functionality
-        initModals: function() {
-            // Open modal
-            $(document).on('click', '[data-modal]', function(e) {
-                e.preventDefault();
-                const modalId = $(this).data('modal');
-                NovaAIAdmin.openModal(modalId);
-            });
-
-            // Close modal
-            $(document).on('click', '.nova-ai-modal-close, .nova-ai-modal-overlay', function(e) {
-                if (e.target === this) {
-                    NovaAIAdmin.closeModal();
-                }
-            });
-
-            // ESC key to close modal
-            $(document).on('keydown', function(e) {
-                if (e.key === 'Escape') {
-                    NovaAIAdmin.closeModal();
-                }
-            });
-        },
-
-        // Open modal
-        openModal: function(modalId) {
-            const $modal = $(`#${modalId}`);
-            if ($modal.length) {
-                $modal.show().addClass('active');
-                $('body').addClass('nova-ai-modal-open');
-            }
-        },
-
-        // Close modal
-        closeModal: function() {
-            $('.nova-ai-modal').removeClass('active').hide();
-            $('body').removeClass('nova-ai-modal-open');
-        },
-
-        // Charts initialization
-        initCharts: function() {
-            // Usage statistics chart
-            if ($('#nova-ai-usage-chart').length && typeof Chart !== 'undefined') {
-                NovaAIAdmin.createUsageChart();
-            }
-
-            // Performance chart
-            if ($('#nova-ai-performance-chart').length && typeof Chart !== 'undefined') {
-                NovaAIAdmin.createPerformanceChart();
-            }
-        },
-
-        // Create usage statistics chart
-        createUsageChart: function() {
-            const ctx = document.getElementById('nova-ai-usage-chart').getContext('2d');
-            
-            $.ajax({
-                url: nova_ai_admin_ajax.ajax_url,
-                method: 'POST',
-                data: {
-                    action: 'nova_ai_get_usage_stats',
-                    nonce: nova_ai_admin_ajax.nonce
-                },
-                success: function(response) {
-                    if (response.success) {
-                        const data = response.data;
-                        
-                        new Chart(ctx, {
-                            type: 'line',
-                            data: {
-                                labels: data.labels,
-                                datasets: [{
-                                    label: 'Messages',
-                                    data: data.messages,
-                                    borderColor: '#2563eb',
-                                    backgroundColor: 'rgba(37, 99, 235, 0.1)',
-                                    tension: 0.4
-                                }, {
-                                    label: 'Images Generated',
-                                    data: data.images,
-                                    borderColor: '#10b981',
-                                    backgroundColor: 'rgba(16, 185, 129, 0.1)',
-                                    tension: 0.4
-                                }]
-                            },
-                            options: {
-                                responsive: true,
-                                plugins: {
-                                    legend: {
-                                        position: 'top',
-                                    },
-                                    title: {
-                                        display: true,
-                                        text: 'Usage Statistics (Last 30 Days)'
-                                    }
-                                },
-                                scales: {
-                                    y: {
-                                        beginAtZero: true
-                                    }
-                                }
-                            }
-                        });
-                    }
-                }
-            });
-        },
-
-        // Real-time updates
-        initRealTimeUpdates: function() {
-            // Update statistics every 30 seconds
-            setInterval(() => {
-                NovaAIAdmin.updateStatistics();
-            }, 30000);
-
-            // Update crawler status every 10 seconds
-            setInterval(() => {
-                NovaAIAdmin.updateCrawlerStatus();
-            }, 10000);
-        },
-
-        // Update statistics
-        updateStatistics: function() {
-            $.ajax({
-                url: nova_ai_admin_ajax.ajax_url,
-                method: 'POST',
-                data: {
-                    action: 'nova_ai_get_quick_stats',
-                    nonce: nova_ai_admin_ajax.nonce
-                },
-                success: function(response) {
-                    if (response.success) {
-                        const stats = response.data;
-                        
-                        // Update stat cards
-                        $('.nova-ai-stat[data-stat="total_messages"] .nova-ai-stat-number').text(stats.total_messages || 0);
-                        $('.nova-ai-stat[data-stat="total_conversations"] .nova-ai-stat-number').text(stats.total_conversations || 0);
-                        $('.nova-ai-stat[data-stat="total_images"] .nova-ai-stat-number').text(stats.total_images || 0);
-                        $('.nova-ai-stat[data-stat="crawled_pages"] .nova-ai-stat-number').text(stats.crawled_pages || 0);
-                    }
-                }
-            });
-        },
-
-        // Update crawler status
-        updateCrawlerStatus: function() {
-            if (!$('.nova-ai-crawler-status').length) return;
-
-            $.ajax({
-                url: nova_ai_admin_ajax.ajax_url,
-                method: 'POST',
-                data: {
-                    action: 'nova_ai_get_crawler_status',
-                    nonce: nova_ai_admin_ajax.nonce
-                },
-                success: function(response) {
-                    if (response.success) {
-                        const status = response.data;
-                        NovaAIAdmin.updateCrawlerStatusDisplay(status);
-                    }
-                }
-            });
-        },
-
-        // Update crawler status display
-        updateCrawlerStatusDisplay: function(status) {
-            const $container = $('.nova-ai-crawler-status');
-            
-            $container.find('.total-urls').text(status.total_urls || 0);
-            $container.find('.crawled-urls').text(status.crawled_urls || 0);
-            $container.find('.error-urls').text(status.error_urls || 0);
-            $container.find('.last-crawl').text(status.last_crawl || 'Never');
-
-            // Update progress bar
-            const progress = status.total_urls > 0 ? (status.crawled_urls / status.total_urls) * 100 : 0;
-            $container.find('.nova-ai-progress-bar').css('width', progress + '%');
-        },
-
-        // Keyboard shortcuts
-        initKeyboardShortcuts: function() {
-            $(document).on('keydown', function(e) {
-                // Ctrl/Cmd + S to save current form
-                if ((e.ctrlKey || e.metaKey) && e.key === 's') {
-                    e.preventDefault();
-                    const $activeForm = $('.nova-ai-form:visible').first();
-                    if ($activeForm.length) {
-                        $activeForm.submit();
-                    }
-                }
-
-                // Ctrl/Cmd + Shift + C to clear cache
-                if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'C') {
-                    e.preventDefault();
-                    NovaAIAdmin.clearCache();
-                }
-
-                // Ctrl/Cmd + Shift + R to run crawler
-                if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'R') {
-                    e.preventDefault();
-                    NovaAIAdmin.runCrawler();
-                }
-            });
-        },
-
-        // Clear cache
-        clearCache: function() {
-            if (!confirm('Are you sure you want to clear all cache?')) return;
-
-            $.ajax({
-                url: nova_ai_admin_ajax.ajax_url,
-                method: 'POST',
-                data: {
-                    action: 'nova_ai_clear_cache',
-                    nonce: nova_ai_admin_ajax.nonce
-                },
-                success: function(response) {
-                    if (response.success) {
-                        NovaAIAdmin.showNotification('Cache cleared successfully', 'success');
-                    } else {
-                        NovaAIAdmin.showNotification('Failed to clear cache', 'error');
-                    }
-                }
-            });
-        },
-
-        // Run crawler manually
-        runCrawler: function() {
-            $.ajax({
-                url: nova_ai_admin_ajax.ajax_url,
-                method: 'POST',
-                data: {
-                    action: 'nova_ai_run_crawler',
-                    nonce: nova_ai_admin_ajax.nonce
-                },
-                success: function(response) {
-                    if (response.success) {
-                        NovaAIAdmin.showNotification('Crawler started successfully', 'success');
-                        setTimeout(() => NovaAIAdmin.updateCrawlerStatus(), 2000);
-                    } else {
-                        NovaAIAdmin.showNotification('Failed to start crawler', 'error');
-                    }
-                }
-            });
-        },
-
-        // Show notification
-        showNotification: function(message, type = 'info', duration = 5000) {
-            const $notification = $(`
-                <div class="nova-ai-notification nova-ai-notification-${type}">
-                    <div class="nova-ai-notification-content">
-                        <span class="nova-ai-notification-icon">${this.getNotificationIcon(type)}</span>
-                        <span class="nova-ai-notification-message">${message}</span>
-                        <button class="nova-ai-notification-close">&times;</button>
-                    </div>
-                </div>
-            `);
-
-            // Add to container
-            if (!$('.nova-ai-notifications').length) {
-                $('body').append('<div class="nova-ai-notifications"></div>');
-            }
-            $('.nova-ai-notifications').append($notification);
-
-            // Show with animation
-            setTimeout(() => $notification.addClass('show'), 10);
-
-            // Auto-hide
-            if (duration > 0) {
-                setTimeout(() => {
-                    $notification.removeClass('show');
-                    setTimeout(() => $notification.remove(), 300);
-                }, duration);
-            }
-
-            // Close button
-            $notification.find('.nova-ai-notification-close').on('click', function() {
-                $notification.removeClass('show');
-                setTimeout(() => $notification.remove(), 300);
-            });
-        },
-
-        // Get notification icon
-        getNotificationIcon: function(type) {
-            const icons = {
-                success: '✓',
-                error: '✗',
-                warning: '⚠',
-                info: 'ℹ'
-            };
-            return icons[type] || icons.info;
-        },
-
-        // Utility functions
-        debounce: function(func, wait) {
-            let timeout;
-            return function executedFunction(...args) {
-                const later = () => {
-                    clearTimeout(timeout);
-                    func(...args);
-                };
-                clearTimeout(timeout);
-                timeout = setTimeout(later, wait);
-            };
-        },
-
-        // Format numbers
-        formatNumber: function(num) {
-            if (num >= 1000000) {
-                return (num / 1000000).toFixed(1) + 'M';
-            } else if (num >= 1000) {
-                return (num / 1000).toFixed(1) + 'K';
-            }
-            return num.toString();
-        },
-
-        // Format bytes
-        formatBytes: function(bytes, decimals = 2) {
-            if (bytes === 0) return '0 Bytes';
-            const k = 1024;
-            const dm = decimals < 0 ? 0 : decimals;
-            const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
-            const i = Math.floor(Math.log(bytes) / Math.log(k));
-            return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
         }
     };
-
-    // Initialize when document is ready
-    $(document).ready(function() {
-        NovaAIAdmin.init();
-
-        // Add loading states to buttons
-        $('.nova-ai-btn[type="submit"]').on('click', function() {
-            const $btn = $(this);
-            const originalText = $btn.text();
-            $btn.prop('disabled', true).text('Processing...');
-            
-            setTimeout(() => {
-                $btn.prop('disabled', false).text(originalText);
-            }, 5000); // Reset after 5 seconds as fallback
+    
+    /**
+     * Provider-Modelle aktualisieren
+     */
+    NovaAI.updateProviderModels = function(chat) {
+        if (!chat.elements.modelSelect || !chat.options.providers) return;
+        
+        const provider = chat.options.providers[chat.currentProvider];
+        if (!provider) return;
+        
+        // Model-Select leeren
+        chat.elements.modelSelect.innerHTML = '';
+        
+        // Modelle hinzufügen
+        provider.models.forEach(model => {
+            const option = document.createElement('option');
+            option.value = model;
+            option.textContent = model;
+            if (model === provider.default_model) {
+                option.selected = true;
+                chat.currentModel = model;
+            }
+            chat.elements.modelSelect.appendChild(option);
         });
-
-        // Auto-expand textareas
-        $('.nova-ai-form-textarea').on('input', function() {
-            this.style.height = 'auto';
-            this.style.height = (this.scrollHeight) + 'px';
-        });
-
-        // Copy to clipboard functionality
-        $('.nova-ai-copy-btn').on('click', function() {
-            const text = $(this).data('copy') || $(this).prev('input, textarea').val();
-            navigator.clipboard.writeText(text).then(() => {
-                NovaAIAdmin.showNotification('Copied to clipboard', 'success', 2000);
-            });
-        });
-
-        // Color picker initialization
-        if ($.fn.wpColorPicker) {
-            $('.nova-ai-color-picker').wpColorPicker();
+        
+        console.log('Nova AI: Updated models for provider', chat.currentProvider, provider.models);
+    };
+    
+    /**
+     * Nachricht senden
+     */
+    NovaAI.sendMessage = function(chatId) {
+        const chat = NovaAI.activeChats[chatId];
+        if (!chat || chat.isProcessing) return;
+        
+        const message = chat.elements.input.value.trim();
+        if (!message) {
+            chat.elements.input.focus();
+            return;
         }
-
-        // Media uploader
-        $('.nova-ai-media-upload').on('click', function(e) {
-            e.preventDefault();
+        
+        console.log('Nova AI: Sending message', {chatId, message, provider: chat.currentProvider});
+        
+        // Processing-Status setzen
+        chat.isProcessing = true;
+        NovaAI.updateStatus(chat, '⌛ Verarbeite...');
+        
+        // User-Nachricht anzeigen
+        NovaAI.addMessage(chat, 'Du', message, 'user');
+        
+        // Input leeren
+        chat.elements.input.value = '';
+        chat.elements.input.style.height = 'auto';
+        
+        // Loading-Nachricht
+        const loadingMsg = NovaAI.addMessage(chat, 'Nova', '⌛ Denke nach...', 'ai loading');
+        
+        // AJAX-Request vorbereiten
+        const formData = new FormData();
+        formData.append('action', chat.imageMode ? 'nova_ai_generate_image' : 'nova_ai_chat');
+        formData.append('prompt', message);
+        formData.append('provider', chat.currentProvider);
+        formData.append('model', chat.currentModel);
+        formData.append('nonce', NovaAI.config.nonce);
+        
+        // AJAX-Request senden
+        fetch(NovaAI.config.ajaxurl, {
+            method: 'POST',
+            credentials: 'same-origin',
+            body: formData
+        })
+        .then(response => {
+            console.log('Nova AI: Response received', response.status);
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            console.log('Nova AI: Response data', data);
+            NovaAI.removeMessage(loadingMsg);
             
-            const $btn = $(this);
-            const $input = $btn.siblings('input');
-            
-            const mediaUploader = wp.media({
-                title: 'Select Image',
-                button: {
-                    text: 'Use Image'
-                },
-                multiple: false
-            });
-            
-            mediaUploader.on('select', function() {
-                const attachment = mediaUploader.state().get('selection').first().toJSON();
-                $input.val(attachment.url);
-                $btn.siblings('.nova-ai-media-preview').html(`<img src="${attachment.url}" style="max-width: 100px; max-height: 100px;">`);
-            });
-            
-            mediaUploader.open();
+            if (data.success) {
+                NovaAI.handleSuccessResponse(chat, data.data);
+            } else {
+                const error = data.data?.msg || 'Unbekannter Fehler';
+                NovaAI.addMessage(chat, 'Nova', '❌ ' + error, 'ai error');
+            }
+        })
+        .catch(error => {
+            console.error('Nova AI: Request failed', error);
+            NovaAI.removeMessage(loadingMsg);
+            NovaAI.addMessage(chat, 'Nova', '❌ Verbindungsfehler: ' + error.message, 'ai error');
+        })
+        .finally(() => {
+            chat.isProcessing = false;
+            NovaAI.updateStatus(chat, 'Bereit');
+            chat.elements.input.focus();
         });
-    });
+    };
+    
+    /**
+     * Erfolgreiche Antwort verarbeiten
+     */
+    NovaAI.handleSuccessResponse = function(chat, data) {
+        if (data.type === 'image_generation') {
+            // Bildgenerierung
+            NovaAI.addImageMessage(chat, data);
+        } else {
+            // Standard-Antwort
+            NovaAI.addMessage(chat, 'Nova', data.answer, 'ai');
+        }
+        
+        // Provider-Info anzeigen
+        if (data.provider && data.model) {
+            NovaAI.updateStatus(chat, `${data.provider}/${data.model} • ${data.tokens_used || 0} Tokens`);
+        }
+    };
+    
+    /**
+     * Bild-Nachricht hinzufügen
+     */
+    NovaAI.addImageMessage = function(chat, data) {
+        const messageEl = document.createElement('div');
+        messageEl.className = 'nova-ai-msg ai image-generation';
+        
+        messageEl.innerHTML = `
+            <div class="nova-msg-header">
+                <span class="nova-avatar">🤖</span>
+                <span class="nova-sender">Nova</span>
+                <span class="nova-provider-badge">🎨 Stable Diffusion</span>
+            </div>
+            <div class="nova-msg-content">
+                <div class="nova-image-result">
+                    <img src="${data.image_url}" alt="Generiertes Bild" class="nova-generated-image" />
+                    <div class="nova-image-info">
+                        <p><strong>Prompt:</strong> ${NovaAI.escapeHtml(data.image_prompt)}</p>
+                        <div class="nova-image-actions">
+                            <a href="${data.image_url}" download="nova-ai-generated.png" class="nova-btn-small">
+                                📥 Download
+                            </a>
+                            <button onclick="NovaAI.copyImagePrompt('${NovaAI.escapeHtml(data.image_prompt)}')" 
+                                    class="nova-btn-small">
+                                📋 Prompt kopieren
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        chat.elements.messages.appendChild(messageEl);
+        NovaAI.scrollToBottom(chat);
+        
+        // Bildmodus automatisch deaktivieren
+        if (chat.elements.imageMode) {
+            chat.elements.imageMode.checked = false;
+            chat.imageMode = false;
+        }
+    };
+    
+    /**
+     * Standard-Nachricht hinzufügen
+     */
+    NovaAI.addMessage = function(chat, sender, content, type) {
+        const messageEl = document.createElement('div');
+        messageEl.className = `nova-ai-msg ${type}`;
+        
+        const avatar = sender === 'Nova' ? '🤖' : '👤';
+        const providerBadge = type === 'ai' && chat.currentProvider ? 
+            `<span class="nova-provider-badge">${chat.currentProvider}</span>` : '';
+        
+        messageEl.innerHTML = `
+            <div class="nova-msg-header">
+                <span class="nova-avatar">${avatar}</span>
+                <span class="nova-sender">${NovaAI.escapeHtml(sender)}</span>
+                ${providerBadge}
+                <span class="nova-timestamp">${new Date().toLocaleTimeString()}</span>
+            </div>
+            <div class="nova-msg-content">
+                ${NovaAI.formatMessage(content)}
+            </div>
+        `;
+        
+        chat.elements.messages.appendChild(messageEl);
+        NovaAI.scrollToBottom(chat);
+        
+        return messageEl;
+    };
+    
+    /**
+     * Nachricht formatieren
+     */
+    NovaAI.formatMessage = function(content) {
+        return NovaAI.escapeHtml(content)
+            .replace(/\n/g, '<br>')
+            .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+            .replace(/\*(.*?)\*/g, '<em>$1</em>')
+            .replace(/`(.*?)`/g, '<code>$1</code>');
+    };
+    
+    /**
+     * Nach unten scrollen
+     */
+    NovaAI.scrollToBottom = function(chat) {
+        chat.elements.messages.scrollTo({
+            top: chat.elements.messages.scrollHeight,
+            behavior: 'smooth'
+        });
+    };
+    
+    /**
+     * Nachricht entfernen
+     */
+    NovaAI.removeMessage = function(messageEl) {
+        if (messageEl && messageEl.parentNode) {
+            messageEl.parentNode.removeChild(messageEl);
+        }
+    };
+    
+    /**
+     * Status aktualisieren
+     */
+    NovaAI.updateStatus = function(chat, status) {
+        if (chat.elements.status) {
+            chat.elements.status.textContent = status;
+        }
+    };
+    
+    /**
+     * HTML escapen
+     */
+    NovaAI.escapeHtml = function(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    };
+    
+    // === GLOBALE HELPER-FUNKTIONEN ===
+    
+    /**
+     * Quick-Prompt einfügen
+     */
+    window.novaQuickPrompt = function(chatId, prefix) {
+        const chat = NovaAI.activeChats[chatId];
+        if (chat && chat.elements.input) {
+            chat.elements.input.value = prefix;
+            chat.elements.input.focus();
+            chat.elements.input.setSelectionRange(prefix.length, prefix.length);
+        }
+    };
+    
+    /**
+     * Nachricht senden (global verfügbar)
+     */
+    window.novaSendMessage = function(chatId) {
+        NovaAI.sendMessage(chatId);
+    };
+    
+    /**
+     * Prompt in Zwischenablage kopieren
+     */
+    NovaAI.copyImagePrompt = function(prompt) {
+        navigator.clipboard.writeText(prompt).then(() => {
+            // Kurze Erfolgsmeldung
+            console.log('Prompt copied to clipboard');
+        });
+    };
+    
+    console.log('Nova AI Extended: JavaScript loaded successfully');
+    
+})(jQuery || window.$ || function() { return arguments[0]; });
 
-    // Expose utility functions globally
-    window.NovaAI = window.NovaAI || {};
-    window.NovaAI.Admin = NovaAIAdmin;
-
-})(jQuery);
-
-// Add notification styles if not already present
-if (!document.querySelector('#nova-ai-notification-styles')) {
-    const styles = `
-        <style id="nova-ai-notification-styles">
-            .nova-ai-notifications {
-                position: fixed;
-                top: 32px;
-                right: 20px;
-                z-index: 999999;
-                max-width: 400px;
-            }
-            .nova-ai-notification {
-                background: white;
-                border-radius: 8px;
-                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-                margin-bottom: 10px;
-                opacity: 0;
-                transform: translateX(100%);
-                transition: all 0.3s ease;
-            }
-            .nova-ai-notification.show {
-                opacity: 1;
-                transform: translateX(0);
-            }
-            .nova-ai-notification-content {
-                padding: 16px;
-                display: flex;
-                align-items: center;
-                gap: 12px;
-            }
-            .nova-ai-notification-icon {
-                font-size: 18px;
-                font-weight: bold;
-            }
-            .nova-ai-notification-message {
-                flex: 1;
-                color: #374151;
-            }
-            .nova-ai-notification-close {
-                background: none;
-                border: none;
-                font-size: 20px;
-                cursor: pointer;
-                color: #6b7280;
-                padding: 0;
-                width: 24px;
-                height: 24px;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-            }
-            .nova-ai-notification-success {
-                border-left: 4px solid #10b981;
-            }
-            .nova-ai-notification-success .nova-ai-notification-icon {
-                color: #10b981;
-            }
-            .nova-ai-notification-error {
-                border-left: 4px solid #ef4444;
-            }
-            .nova-ai-notification-error .nova-ai-notification-icon {
-                color: #ef4444;
-            }
-            .nova-ai-notification-warning {
-                border-left: 4px solid #f59e0b;
-            }
-            .nova-ai-notification-warning .nova-ai-notification-icon {
-                color: #f59e0b;
-            }
-            .nova-ai-notification-info {
-                border-left: 4px solid #2563eb;
-            }
-            .nova-ai-notification-info .nova-ai-notification-icon {
-                color: #2563eb;
-            }
-        </style>
-    `;
-    document.head.insertAdjacentHTML('beforeend', styles);
-}
+// DOM Ready Handler
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('Nova AI Extended: DOM ready, version', window.nova_ai_config?.version);
+});
