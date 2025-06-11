@@ -58,6 +58,7 @@ class NovaAIBrainpoolSafe {
         // Admin-Interface nur im Backend
         if (is_admin()) {
             add_action('admin_menu', array($this, 'add_admin_menu'));
+            add_action('admin_init', array($this, 'register_settings'));
         }
         
         // Plugin-Hooks
@@ -68,6 +69,13 @@ class NovaAIBrainpoolSafe {
         $this->load_core_classes();
         
         $this->log('Plugin erfolgreich initialisiert');
+    }
+    
+    /**
+     * Settings registrieren
+     */
+    public function register_settings() {
+        register_setting('nova_ai_stable_diffusion_settings', 'nova_ai_stable_diffusion_url');
     }
     
     /**
@@ -224,9 +232,17 @@ class NovaAIBrainpoolSafe {
                         <?php if ($this->providers): ?>
                             ✅ Multi-Provider aktiv
                         <?php else: ?>
-                            ⚡ Legacy-Modus (Ollama)
+                            ⚡ Legacy-Modus (Mixtral)
                         <?php endif; ?>
                         </p>
+                        <p><strong>Bildgenerierung:</strong> 
+                        <?php if (class_exists('Nova_AI_Stable_Diffusion') && Nova_AI_Stable_Diffusion::is_available()): ?>
+                            ✅ Stable Diffusion verfügbar
+                        <?php else: ?>
+                            ❌ Stable Diffusion nicht verfügbar
+                        <?php endif; ?>
+                        </p>
+                        <p><strong>Bildanalyse:</strong> ✅ LLaVA verfügbar</p>
                         <p><strong>Version:</strong> <?php echo NOVA_AI_VERSION; ?></p>
                     </div>
                 </div>
@@ -238,6 +254,19 @@ class NovaAIBrainpoolSafe {
                         placeholder="<?php echo esc_attr($atts['placeholder']); ?>"
                         style="flex: 1; background: #333; color: #00ff41; border: 1px solid #555; border-radius: 4px; padding: 10px; resize: none; min-height: 40px;"
                         rows="1"></textarea>
+                    
+                    <input type="file" 
+                           id="<?php echo $chat_id; ?>-image-upload" 
+                           accept="image/*" 
+                           style="display: none;"
+                           onchange="novaHandleImageUpload('<?php echo $chat_id; ?>', this)">
+                    
+                    <button type="button" 
+                            class="nova-upload-btn"
+                            style="background: #555; color: #00ff41; border: none; padding: 10px; border-radius: 4px; cursor: pointer;"
+                            onclick="document.getElementById('<?php echo $chat_id; ?>-image-upload').click()">
+                        📷
+                    </button>
                     
                     <button 
                         type="button" 
@@ -251,6 +280,27 @@ class NovaAIBrainpoolSafe {
         </div>
         
         <script>
+        // Bild-Upload Handler
+        function novaHandleImageUpload(chatId, input) {
+            if (input.files && input.files[0]) {
+                var reader = new FileReader();
+                reader.onload = function(e) {
+                    // Zeige Vorschau
+                    var messages = document.getElementById(chatId + '-messages');
+                    messages.innerHTML += '<div class="nova-ai-msg user"><p><strong>👤 Du:</strong> 📷 Bild hochgeladen</p>' +
+                        '<img src="' + e.target.result + '" style="max-width: 200px; border-radius: 8px; margin: 10px 0;"></div>';
+                    
+                    // Speichere Bild-Daten für nächste Nachricht
+                    window.novaUploadedImage = e.target.result.split(',')[1]; // Base64 ohne Data-URL-Prefix
+                    
+                    // Fokus auf Input
+                    document.getElementById(chatId + '-input').placeholder = 'Was möchtest du über das Bild wissen?';
+                    document.getElementById(chatId + '-input').focus();
+                };
+                reader.readAsDataURL(input.files[0]);
+            }
+        }
+        
         // Sichere globale Funktion
         function novaSafeSendMessage(chatId) {
             var input = document.getElementById(chatId + '-input');
@@ -262,9 +312,14 @@ class NovaAIBrainpoolSafe {
             }
             
             var message = input.value.trim();
-            if (!message) {
+            if (!message && !window.novaUploadedImage) {
                 input.focus();
                 return;
+            }
+            
+            // Standard-Nachricht wenn Bild ohne Text
+            if (!message && window.novaUploadedImage) {
+                message = 'Was siehst du auf diesem Bild?';
             }
             
             // User-Nachricht hinzufügen
@@ -274,15 +329,22 @@ class NovaAIBrainpoolSafe {
             
             // Loading-Nachricht
             var loadingId = 'loading-' + Date.now();
-            messages.innerHTML += '<div id="' + loadingId + '" class="nova-ai-msg ai loading"><p><strong>🤖 Nova:</strong> ⌛ Denke nach...</p></div>';
+            var loadingText = window.novaUploadedImage ? '🔍 Analysiere Bild mit LLaVA...' : '⌛ Denke nach...';
+            messages.innerHTML += '<div id="' + loadingId + '" class="nova-ai-msg ai loading"><p><strong>🤖 Nova:</strong> ' + loadingText + '</p></div>';
             messages.scrollTop = messages.scrollHeight;
             
-            // AJAX-Request
-            jQuery.post(nova_ai_config.ajaxurl, {
+            // AJAX-Request mit Bild-Daten
+            var requestData = {
                 action: 'nova_ai_chat',
                 prompt: message,
                 nonce: nova_ai_config.nonce
-            })
+            };
+            
+            if (window.novaUploadedImage) {
+                requestData.image_data = window.novaUploadedImage;
+            }
+            
+            jQuery.post(nova_ai_config.ajaxurl, requestData)
             .done(function(response) {
                 console.log('Nova AI Response:', response);
                 document.getElementById(loadingId).remove();
@@ -290,6 +352,12 @@ class NovaAIBrainpoolSafe {
                 if (response.success && response.data && response.data.answer) {
                     messages.innerHTML += '<div class="nova-ai-msg ai"><p><strong>🤖 Nova:</strong> ' + 
                         response.data.answer.replace(/\n/g, '<br>') + '</p></div>';
+                    
+                    // Reset uploaded image nach Antwort
+                    if (window.novaUploadedImage) {
+                        window.novaUploadedImage = null;
+                        document.getElementById(chatId + '-input').placeholder = 'Frage Nova etwas...';
+                    }
                 } else {
                     var error = response.data && response.data.msg ? response.data.msg : 'Unbekannter Fehler';
                     messages.innerHTML += '<div class="nova-ai-msg ai error"><p><strong>❌ Nova:</strong> ' + error + '</p></div>';
@@ -344,8 +412,77 @@ class NovaAIBrainpoolSafe {
             return;
         }
         
+        // Prüfe ob ein Bild hochgeladen wurde
+        $image_data = isset($_POST['image_data']) ? $_POST['image_data'] : null;
+        
         $this->log("Processing prompt: " . substr($prompt, 0, 50) . '...');
         
+        // Wenn Bild vorhanden, verwende LLaVA für Bildanalyse
+        if ($image_data) {
+            $this->log("Bildanalyse mit LLaVA angefordert");
+            
+            // Verwende LLaVA für Bildanalyse
+            $result = $this->analyze_image_with_llava($prompt, $image_data);
+            
+            if ($result['success']) {
+                wp_send_json_success(array(
+                    'answer' => $result['message'],
+                    'type' => 'image_analysis',
+                    'model' => 'llava'
+                ));
+                return;
+            } else {
+                wp_send_json_error(array('msg' => $result['error']));
+                return;
+            }
+        }
+        
+        // Prüfe ob es eine Bildgenerierung ist
+        if (class_exists('Nova_AI_Stable_Diffusion')) {
+            $image_prompt = Nova_AI_Stable_Diffusion::extract_image_prompt($prompt);
+            
+            if ($image_prompt !== false) {
+                $this->log("Bildgenerierung angefordert: " . $image_prompt);
+                
+                // Prüfe ob Stable Diffusion verfügbar ist
+                if (!Nova_AI_Stable_Diffusion::is_available()) {
+                    wp_send_json_error(array(
+                        'msg' => 'Stable Diffusion ist nicht verfügbar. Bitte stellen Sie sicher, dass der Service unter http://172.17.0.1:7860 läuft.'
+                    ));
+                    return;
+                }
+                
+                // Generiere das Bild
+                $image_url = Nova_AI_Stable_Diffusion::generate_image($image_prompt);
+                
+                if ($image_url) {
+                    // Erfolgreiche Bildgenerierung
+                    $html_response = sprintf(
+                        '🎨 Ich habe ein Bild für dich generiert!<br><br>' .
+                        '<img src="%s" alt="%s" style="max-width: 100%%; height: auto; border-radius: 8px; margin: 10px 0;">' .
+                        '<br><br><a href="%s" download="nova-ai-generated.png" style="color: #00ff41; text-decoration: underline;">💾 Bild herunterladen</a>',
+                        esc_url($image_url),
+                        esc_attr($image_prompt),
+                        esc_url($image_url)
+                    );
+                    
+                    wp_send_json_success(array(
+                        'answer' => $html_response,
+                        'type' => 'image',
+                        'image_url' => $image_url
+                    ));
+                    return;
+                } else {
+                    // Fehler bei der Bildgenerierung
+                    wp_send_json_error(array(
+                        'msg' => 'Fehler bei der Bildgenerierung. Bitte versuchen Sie es später erneut.'
+                    ));
+                    return;
+                }
+            }
+        }
+        
+        // Standard-Textantwort verarbeiten mit Mixtral
         // Verwende Provider-System falls verfügbar
         if ($this->providers) {
             try {
@@ -364,7 +501,7 @@ class NovaAIBrainpoolSafe {
             }
         }
         
-        // Fallback auf Legacy-System
+        // Fallback auf Legacy-System mit Mixtral
         $result = $this->legacy_chat_request($prompt);
         
         if ($result['success']) {
@@ -372,6 +509,65 @@ class NovaAIBrainpoolSafe {
         } else {
             wp_send_json_error(array('msg' => $result['error']));
         }
+    }
+    
+    /**
+     * Bildanalyse mit LLaVA
+     */
+    private function analyze_image_with_llava($prompt, $image_data) {
+        $env = $this->load_env_config();
+        $ollama_url = $env['OLLAMA_URL'];
+        $system_prompt = 'Du bist Nova, ein KI-Bildanalyse-Experte. Analysiere Bilder präzise und hilfreich.';
+        
+        // LLaVA API-Aufruf mit Bild
+        $data = array(
+            'model' => 'llava',
+            'messages' => array(
+                array(
+                    'role' => 'user',
+                    'content' => $prompt,
+                    'images' => array($image_data)
+                )
+            ),
+            'stream' => false
+        );
+        
+        $args = array(
+            'method' => 'POST',
+            'timeout' => 60, // Längerer Timeout für Bildanalyse
+            'headers' => array('Content-Type' => 'application/json'),
+            'body' => json_encode($data)
+        );
+        
+        $this->log("LLaVA Request zu: {$ollama_url}");
+        
+        $response = wp_remote_post($ollama_url, $args);
+        
+        if (is_wp_error($response)) {
+            $error = 'Verbindungsfehler: ' . $response->get_error_message();
+            $this->log($error, 'error');
+            return array('success' => false, 'error' => $error);
+        }
+        
+        $status = wp_remote_retrieve_response_code($response);
+        $body = wp_remote_retrieve_body($response);
+        
+        if ($status !== 200) {
+            $error = "API-Fehler (HTTP {$status})";
+            $this->log($error, 'error');
+            return array('success' => false, 'error' => $error);
+        }
+        
+        $json = json_decode($body, true);
+        
+        if (!$json || !isset($json['message']['content'])) {
+            $error = 'Ungültige API-Antwort';
+            $this->log($error . ': ' . $body, 'error');
+            return array('success' => false, 'error' => $error);
+        }
+        
+        $this->log('LLaVA-Antwort erfolgreich erhalten');
+        return array('success' => true, 'message' => $json['message']['content']);
     }
     
     /**
@@ -503,6 +699,32 @@ class NovaAIBrainpoolSafe {
                     <li>Crawler: <?php echo $this->crawler ? '✅ Verfügbar' : '❌ Nicht verfügbar'; ?></li>
                     <li>NovaNet: <?php echo $this->novanet ? '✅ Verfügbar' : '❌ Nicht verfügbar'; ?></li>
                 </ul>
+                
+                <h4>🎨 Stable Diffusion Konfiguration:</h4>
+                <form method="post" action="options.php">
+                    <?php settings_fields('nova_ai_stable_diffusion_settings'); ?>
+                    <table>
+                        <tr>
+                            <td><strong>API URL:</strong></td>
+                            <td>
+                                <input type="text" name="nova_ai_stable_diffusion_url" 
+                                       value="<?php echo esc_attr(get_option('nova_ai_stable_diffusion_url', 'http://localhost:7860/sdapi/v1/txt2img')); ?>" 
+                                       style="width: 300px; background: #333; color: #00ff41; border: 1px solid #555; padding: 5px;">
+                            </td>
+                        </tr>
+                        <tr>
+                            <td><strong>Status:</strong></td>
+                            <td>
+                                <?php if (class_exists('Nova_AI_Stable_Diffusion') && Nova_AI_Stable_Diffusion::is_available()): ?>
+                                    ✅ Verfügbar
+                                <?php else: ?>
+                                    ❌ Nicht verfügbar
+                                <?php endif; ?>
+                            </td>
+                        </tr>
+                    </table>
+                    <input type="submit" value="Speichern" class="button button-primary" style="margin-top: 10px;">
+                </form>
                 
                 <h4>🧪 Test-Shortcode:</h4>
                 <code>[nova_ai_chat]</code>
