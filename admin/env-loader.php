@@ -120,7 +120,7 @@ function nova_ai_brainpool_create_default_env($path) {
     
     $default_env = [
         'OLLAMA_URL' => 'http://127.0.0.1:11434/api/chat',
-        'OLLAMA_MODEL' => 'zephyr'
+        'OLLAMA_MODEL' => 'mixtral'
     ];
     
     return nova_ai_brainpool_save_env($path, $default_env);
@@ -174,7 +174,7 @@ function nova_ai_brainpool_get_config($path) {
     // Falls .env nicht verfügbar, nutze WordPress-Optionen als Fallback
     $config = [
         'OLLAMA_URL' => $env['OLLAMA_URL'] ?? get_option('nova_ai_ollama_url', 'http://127.0.0.1:11434/api/chat'),
-        'OLLAMA_MODEL' => $env['OLLAMA_MODEL'] ?? get_option('nova_ai_ollama_model', 'zephyr')
+        'OLLAMA_MODEL' => $env['OLLAMA_MODEL'] ?? get_option('nova_ai_ollama_model', 'mixtral')
     ];
     
     return $config;

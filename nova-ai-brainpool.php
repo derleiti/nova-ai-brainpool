@@ -393,7 +393,7 @@ class NovaAIBrainpoolSafe {
     private function load_env_config() {
         $defaults = array(
             'OLLAMA_URL' => 'http://127.0.0.1:11434/api/chat',
-            'OLLAMA_MODEL' => 'zephyr'
+            'OLLAMA_MODEL' => 'mixtral'
         );
         
         $env_file = NOVA_AI_PLUGIN_PATH . '.env';
@@ -534,7 +534,7 @@ class NovaAIBrainpoolSafe {
         if (!file_exists($env_file)) {
             $env_content = "# Nova AI Brainpool - Production Safe Configuration\n";
             $env_content .= "OLLAMA_URL=http://127.0.0.1:11434/api/chat\n";
-            $env_content .= "OLLAMA_MODEL=zephyr\n";
+            $env_content .= "OLLAMA_MODEL=mixtral\n";
             
             file_put_contents($env_file, $env_content);
             if (file_exists($env_file)) {
