@@ -1,3 +1,4 @@
+require_once plugin_dir_path(__FILE__) . 'class-nova-ai-stable-diffusion.php';
 <?php
 /**
  * Nova AI Brainpool - Core-Klasse
