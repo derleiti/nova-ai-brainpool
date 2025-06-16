@@ -37,8 +37,8 @@ class NovaAIProviders extends NovaAICore {
             'ollama' => [
                 'name' => 'Ollama (Lokal)',
                 'endpoint' => 'http://127.0.0.1:11434/api/chat',
-                'models' => ['zephyr', 'mistral', 'llama2', 'codellama'],
-                'default_model' => 'zephyr',
+                'models' => ['mixtral', 'mistral', 'llama2', 'codellama'],
+                'default_model' => 'mixtral',
                 'type' => 'ollama'
             ],
             'openai' => [

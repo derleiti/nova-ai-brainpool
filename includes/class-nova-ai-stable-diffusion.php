@@ -1,7 +1,7 @@
 <?php
 /**
  * Nova AI Brainpool - Stable Diffusion Integration
- * Bildgenerierung mit Stable Diffusion API
+ * Bildgenerierung mit Stable Diffusion WebUI
  */
 
 // Verhindere direkten Zugriff
@@ -9,154 +9,254 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-class Nova_AI_Stable_Diffusion {
+require_once(NOVA_AI_PLUGIN_PATH . 'includes/class-nova-ai-core.php');
+
+class NovaAIStableDiffusion extends NovaAICore {
+    
+    private $config;
+    
+    public function __construct() {
+        parent::__construct();
+        $this->load_config();
+    }
     
     /**
-     * Generiert ein Bild basierend auf dem Prompt
-     * 
-     * @param string $prompt Der Bildprompt
-     * @return string|false Relativer Pfad zum generierten Bild oder false bei Fehler
+     * Konfiguration laden
      */
-    public static function generate_image($prompt) {
-        // Sicherheitsprüfung für Prompt
-        $prompt = sanitize_text_field($prompt);
-        
-        // API-Konfiguration
-        $api_url = get_option('nova_ai_stable_diffusion_url', 'http://localhost:7860/sdapi/v1/txt2img');
-        
-        // Payload vorbereiten
-        $payload = json_encode([
-            "prompt" => $prompt,
-            "negative_prompt" => "nsfw, nude, violence, gore, ugly, deformed, blurry",
-            "steps" => 30,
-            "cfg_scale" => 7.5,
-            "width" => 1920,
-            "height" => 1080,
-            "sampler_name" => "Euler a",
-            "batch_size" => 1,
-            "n_iter" => 1
+    private function load_config() {
+        $this->config = get_option('nova_ai_stable_diffusion', [
+            'enabled' => false,
+            'endpoint' => 'http://127.0.0.1:7860',
+            'resolution' => '1024x1024',
+            'auto_detect' => true
         ]);
-
-        // WordPress HTTP API verwenden statt curl
-        $response = wp_remote_post($api_url, [
-            'timeout' => 60,
+    }
+    
+    /**
+     * Prüfe ob Stable Diffusion aktiviert ist
+     */
+    public function is_enabled() {
+        return $this->config['enabled'] ?? false;
+    }
+    
+    /**
+     * Bild generieren
+     */
+    public function generate_image($prompt, $options = []) {
+        if (!$this->is_enabled()) {
+            return [
+                'success' => false,
+                'error' => 'Stable Diffusion ist nicht aktiviert'
+            ];
+        }
+        
+        // Standard-Optionen
+        $defaults = [
+            'resolution' => $this->config['resolution'] ?? '1024x1024',
+            'steps' => 20,
+            'cfg_scale' => 7.5,
+            'negative_prompt' => 'blurry, bad quality, distorted',
+            'sampler' => 'DPM++ 2M Karras'
+        ];
+        
+        $options = array_merge($defaults, $options);
+        
+        // Auflösung parsen
+        list($width, $height) = explode('x', $options['resolution']);
+        
+        $this->log("Generating image with prompt: " . substr($prompt, 0, 50) . '...');
+        
+        // SD WebUI API Request
+        $data = [
+            'prompt' => $prompt,
+            'negative_prompt' => $options['negative_prompt'],
+            'width' => intval($width),
+            'height' => intval($height),
+            'steps' => intval($options['steps']),
+            'cfg_scale' => floatval($options['cfg_scale']),
+            'sampler_name' => $options['sampler'],
+            'batch_size' => 1,
+            'n_iter' => 1
+        ];
+        
+        $endpoint = rtrim($this->config['endpoint'], '/') . '/sdapi/v1/txt2img';
+        
+        $response = $this->http_request($endpoint, [
+            'method' => 'POST',
             'headers' => [
                 'Content-Type' => 'application/json'
             ],
-            'body' => $payload
+            'body' => json_encode($data),
+            'timeout' => 120 // Länger Timeout für Bildgenerierung
         ]);
-
-        // Fehlerbehandlung
-        if (is_wp_error($response)) {
-            error_log('Nova AI Stable Diffusion Error: ' . $response->get_error_message());
-            return false;
-        }
-
-        $response_code = wp_remote_retrieve_response_code($response);
-        if ($response_code !== 200) {
-            error_log('Nova AI Stable Diffusion Error: HTTP ' . $response_code);
-            return false;
-        }
-
-        $body = wp_remote_retrieve_body($response);
-        $result = json_decode($body, true);
         
-        if (!isset($result['images'][0])) {
-            error_log('Nova AI Stable Diffusion Error: No image in response');
-            return false;
+        if (!$response['success']) {
+            return [
+                'success' => false,
+                'error' => 'Stable Diffusion API Error: ' . ($response['error'] ?? 'Unknown error')
+            ];
         }
-
-        // Bild decodieren
-        $image_data = base64_decode($result['images'][0]);
-        if (!$image_data) {
-            error_log('Nova AI Stable Diffusion Error: Failed to decode image');
-            return false;
-        }
-
-        // Upload-Verzeichnis verwenden
-        $upload_dir = wp_upload_dir();
-        $nova_images_dir = $upload_dir['basedir'] . '/nova-ai-images';
-        $nova_images_url = $upload_dir['baseurl'] . '/nova-ai-images';
         
-        // Verzeichnis erstellen falls nicht vorhanden
-        if (!file_exists($nova_images_dir)) {
-            wp_mkdir_p($nova_images_dir);
+        $json_response = $this->parse_json_response($response);
+        if (!$json_response['success']) {
+            return $json_response;
         }
-
-        // Dateiname generieren
-        $filename = 'nova-ai-' . time() . '-' . wp_rand(1000, 9999) . '.png';
-        $filepath = $nova_images_dir . '/' . $filename;
-
+        
+        $result = $json_response['data'];
+        
+        if (!isset($result['images']) || empty($result['images'])) {
+            return [
+                'success' => false,
+                'error' => 'No images generated'
+            ];
+        }
+        
+        // Erstes Bild nehmen
+        $image_data = $result['images'][0];
+        
         // Bild speichern
-        $saved = file_put_contents($filepath, $image_data);
-        if (!$saved) {
-            error_log('Nova AI Stable Diffusion Error: Failed to save image');
-            return false;
-        }
-
-        // URL zurückgeben
-        return $nova_images_url . '/' . $filename;
-    }
-
-    /**
-     * Prüft ob Stable Diffusion verfügbar ist
-     * 
-     * @return bool
-     */
-    public static function is_available() {
-        $api_url = get_option('nova_ai_stable_diffusion_url', 'http://localhost:7860/sdapi/v1/txt2img');
+        $saved_image = $this->save_generated_image($image_data, $prompt);
         
-        // Versuche die API zu erreichen
-        $response = wp_remote_get(str_replace('/txt2img', '/options', $api_url), [
-            'timeout' => 5
-        ]);
-
-        if (is_wp_error($response)) {
+        if (!$saved_image['success']) {
+            return $saved_image;
+        }
+        
+        return [
+            'success' => true,
+            'image_url' => $saved_image['url'],
+            'image_path' => $saved_image['path'],
+            'prompt' => $prompt,
+            'settings' => $options
+        ];
+    }
+    
+    /**
+     * Generiertes Bild speichern
+     */
+    private function save_generated_image($base64_data, $prompt) {
+        // Upload-Verzeichnis erstellen
+        $upload_dir = wp_upload_dir();
+        $nova_dir = $upload_dir['basedir'] . '/nova-ai-images';
+        
+        if (!file_exists($nova_dir)) {
+            wp_mkdir_p($nova_dir);
+        }
+        
+        // Dateiname generieren
+        $filename = 'nova-ai-' . date('Y-m-d-H-i-s') . '-' . wp_rand(1000, 9999) . '.png';
+        $file_path = $nova_dir . '/' . $filename;
+        $file_url = $upload_dir['baseurl'] . '/nova-ai-images/' . $filename;
+        
+        // Base64 dekodieren und speichern
+        $image_data = base64_decode($base64_data);
+        
+        if (!$image_data) {
+            return [
+                'success' => false,
+                'error' => 'Failed to decode image data'
+            ];
+        }
+        
+        $saved = file_put_contents($file_path, $image_data);
+        
+        if (!$saved) {
+            return [
+                'success' => false,
+                'error' => 'Failed to save image file'
+            ];
+        }
+        
+        // Metadaten speichern
+        $this->save_image_metadata($filename, $prompt);
+        
+        $this->log("Image saved: {$filename}");
+        
+        return [
+            'success' => true,
+            'path' => $file_path,
+            'url' => $file_url,
+            'filename' => $filename
+        ];
+    }
+    
+    /**
+     * Bild-Metadaten speichern
+     */
+    private function save_image_metadata($filename, $prompt) {
+        $metadata = get_option('nova_ai_image_metadata', []);
+        
+        $metadata[$filename] = [
+            'prompt' => $prompt,
+            'generated_at' => time(),
+            'user_id' => get_current_user_id(),
+            'settings' => $this->config
+        ];
+        
+        // Nur die letzten 100 Bilder speichern
+        if (count($metadata) > 100) {
+            $metadata = array_slice($metadata, -100, null, true);
+        }
+        
+        update_option('nova_ai_image_metadata', $metadata);
+    }
+    
+    /**
+     * Stable Diffusion Verbindung testen
+     */
+    public function test_connection() {
+        if (!$this->is_enabled()) {
             return false;
         }
-
-        $response_code = wp_remote_retrieve_response_code($response);
-        return $response_code === 200;
+        
+        $endpoint = rtrim($this->config['endpoint'], '/') . '/app_id';
+        
+        $response = $this->http_request($endpoint, [
+            'timeout' => 10
+        ]);
+        
+        return $response['success'] && $response['status_code'] === 200;
     }
-
+    
     /**
-     * Extrahiert den Bildprompt aus einer Nachricht
-     * 
-     * @param string $message Die Nachricht
-     * @return string|false Der extrahierte Prompt oder false
+     * Verfügbare Modelle abrufen
      */
-    public static function extract_image_prompt($message) {
-        // Prüfe auf #image Tag
-        if (stripos($message, '#image') === 0) {
-            return trim(str_ireplace('#image', '', $message));
+    public function get_available_models() {
+        if (!$this->is_enabled()) {
+            return [];
         }
-
-        // Prüfe auf andere Bildanfragen
-        $image_keywords = [
-            'generiere ein bild',
-            'erstelle ein bild',
-            'zeige mir ein bild',
-            'male mir',
-            'zeichne mir',
-            'generate an image',
-            'create an image',
-            'show me an image',
-            'draw me',
-            'paint me'
+        
+        $endpoint = rtrim($this->config['endpoint'], '/') . '/sdapi/v1/sd-models';
+        
+        $response = $this->http_request($endpoint);
+        
+        if (!$response['success']) {
+            return [];
+        }
+        
+        $json_response = $this->parse_json_response($response);
+        
+        if (!$json_response['success']) {
+            return [];
+        }
+        
+        return $json_response['data'];
+    }
+    
+    /**
+     * Prompt-Verbesserung (optional)
+     */
+    public function enhance_prompt($prompt) {
+        // Basis-Verbesserungen für bessere Bildqualität
+        $enhancements = [
+            'masterpiece',
+            'best quality',
+            'highly detailed',
+            '8k resolution'
         ];
-
-        $message_lower = strtolower($message);
-        foreach ($image_keywords as $keyword) {
-            if (strpos($message_lower, $keyword) !== false) {
-                // Extrahiere den Teil nach dem Keyword
-                $parts = explode($keyword, $message_lower);
-                if (isset($parts[1])) {
-                    return trim($parts[1]);
-                }
-            }
-        }
-
-        return false;
+        
+        $enhanced = $prompt . ', ' . implode(', ', $enhancements);
+        
+        return $enhanced;
     }
 }
 ?>
