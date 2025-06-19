@@ -119,7 +119,7 @@ function nova_ai_brainpool_create_default_env($path) {
     }
     
     $default_env = [
-        'OLLAMA_URL' => 'http://127.0.0.1:11434/api/chat',
+        'OLLAMA_URL' => 'http://172.17.0.1:11434/v1/chat/completions',
         'OLLAMA_MODEL' => 'mixtral'
     ];
     
